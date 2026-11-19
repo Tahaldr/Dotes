@@ -250,6 +250,7 @@ func (m *model) overlays(content string) string {
 		lines = append(lines, "")
 	}
 	m.whichKeyPopup(lines)
+	m.suggestPopup(lines)
 	m.finderPopup(lines)
 	m.menuPopup(lines)
 	m.inputPopup(lines)

@@ -89,14 +89,7 @@ func Command(args []string) *Launch {
 		if nwo == "" {
 			fail(fmt.Errorf("this folder isn't a clone of a GitHub repo (no github.com remote)"))
 		}
-		return start(func(m *model) tea.Cmd {
-			m.local[strings.ToLower(nwo)] = dir
-			sec := secCode
-			if out, _ := gitRun(dir, "status", "--porcelain"); strings.TrimSpace(out) != "" {
-				sec = secChanges
-			}
-			return tea.Batch(m.scanLocalInfo(), m.gotoItem(nwo, sec, "", func(exItem) bool { return true }, nil))
-		})
+		return start(func(m *model) tea.Cmd { return m.openDir(dir) })
 	default:
 		if nwoRe.MatchString(args[0]) {
 			if _, err := os.Stat(args[0]); err != nil { // not a file: a repo
@@ -114,6 +107,21 @@ func Command(args []string) *Launch {
 		return &Launch{solo: newSoloModel(rd)}
 	}
 	return nil
+}
+
+// openDir opens the repo a folder on this PC is a clone of (dotes g . , Files' gi):
+// Changes when something isn't committed, else Code.
+func (m *model) openDir(dir string) tea.Cmd {
+	nwo := remoteOf(dir)
+	if nwo == "" {
+		return m.setStatus(tildePath(dir)+" isn't a clone of a GitHub repo (no github.com remote)", true)
+	}
+	m.local[strings.ToLower(nwo)] = dir
+	sec := secCode
+	if out, _ := gitRun(dir, "status", "--porcelain"); strings.TrimSpace(out) != "" {
+		sec = secChanges
+	}
+	return tea.Batch(m.scanLocalInfo(), m.gotoItem(nwo, sec, "", func(exItem) bool { return true }, nil))
 }
 
 // start checks the login, then says what to open; first (if any) runs once the window size is known

@@ -169,6 +169,44 @@ func (m *model) readShaped(dir string, filter string) ([]entry, int, error) {
 	return filterEntries(list, filter), n, nil
 }
 
+// linkDir: the folder under the cursor, or the one we're in
+func (m *model) linkDir() string {
+	if c := m.current(); c != nil && c.isDir && !c.drive && m.virtual == "" {
+		return c.path
+	}
+	if c := m.current(); c != nil && m.virtual != "" { // search results: the file's folder
+		if c.isDir {
+			return c.path
+		}
+		return filepath.Dir(c.path)
+	}
+	return m.cwd
+}
+
+// openInGit (gi): the repo this folder is in, in the Git part
+func (m *model) openInGit() tea.Cmd {
+	dir := m.linkDir()
+	root := app.RepoRoot(dir)
+	switch {
+	case root == "":
+		m.setNote(prettyPath(dir)+" isn't in a git repo", true)
+		return nil
+	case !app.OnGitHub(root):
+		m.setNote(filepath.Base(root)+" has no GitHub remote (origin), so Git can't open it", true)
+		return nil
+	}
+	return app.Open("git", root)
+}
+
+// openNotes (gn): the project's note in Notes (made the first time)
+func (m *model) openNotes() tea.Cmd {
+	dir := m.linkDir()
+	if root := app.RepoRoot(dir); root != "" {
+		dir = root
+	}
+	return app.Open("notes", dir)
+}
+
 // cd goes to dir and puts the cursor on hover (or on where it was last time)
 func (m *model) cd(dir, hover string, record bool) {
 	dir = filepath.Clean(dir)
@@ -317,6 +355,10 @@ func (m *model) previewCmd() tea.Cmd {
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.gfxMsg(msg) {
+		return m, m.imgSyncLater()
+	}
+	if o, ok := msg.(app.OpenMsg); ok { // another part sent us somewhere
+		m.jumpTo(o.Path)
 		return m, m.imgSyncLater()
 	}
 	if s, ok := msg.(app.ShownMsg); ok {
@@ -498,6 +540,10 @@ func (m *model) key(k tea.KeyPressMsg) tea.Cmd {
 				m.followLink()
 			case "p":
 				m.showProjects()
+			case "i":
+				return m.openInGit()
+			case "n":
+				return m.openNotes()
 			case "t":
 				if !m.dump {
 					if err := openRecycleBin(); err != nil {

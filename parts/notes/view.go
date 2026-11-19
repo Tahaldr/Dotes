@@ -2,6 +2,7 @@ package notes
 
 import (
 	"fmt"
+	"github.com/Tahaldr/dotes/internal/paths"
 	"os"
 	"strings"
 
@@ -79,6 +80,7 @@ func (m *model) mainView() string {
 	m.bodyH = max(1, m.h-3-len(hints))
 	lines := []string{m.header(), m.tabRule()}
 	m.cards, m.rightRows, m.agendaRows = nil, nil, nil
+	m.editY = -1
 	var body []string
 	switch m.page() {
 	case "today":
@@ -243,6 +245,15 @@ func (m *model) todoPane(w, h int) []string {
 	}
 
 	curStart, curEnd := -1, -1
+	editAt, editCol := -1, 0 // the row being typed, and where its path starts (the popup goes there)
+	markEdit := func(x, fw int) {
+		editAt = len(out)
+		col := 0
+		if start, _, ok := paths.Word(m.edit.p.text, m.edit.p.pos); ok {
+			col = min(width(string(m.edit.p.text[:start])), max(0, fw-12))
+		}
+		editCol = m.pageX + x + col
+	}
 	rows := d.rows()
 	arch := d.archiveStart()
 	if len(rows) == 0 && m.edit == nil {
@@ -280,6 +291,7 @@ func (m *model) todoPane(w, h int) []string {
 			pw := width(prefix)
 			boxAt := width(lead) + m.pageX
 			if m.edit != nil && m.edit.line == i {
+				markEdit(pw, max(4, w-pw-2))
 				add(prefix+m.edit.p.field(max(4, w-pw-2), fg(cTxt)), i, boxAt)
 				break
 			}
@@ -312,7 +324,7 @@ func (m *model) todoPane(w, h int) []string {
 				if c == 0 {
 					p, bx = prefix, boxAt
 				}
-				row := p + textSt.Render(ch)
+				row := p + paths.Style(ch, textSt, linkStyle(textSt))
 				if c == 0 && rw > 0 && width(row)+rw+3 <= w-1 {
 					row += strings.Repeat(" ", w-1-width(row)-rw) + right
 					right = ""
@@ -343,6 +355,7 @@ func (m *model) todoPane(w, h int) []string {
 				st = fg(cMut)
 			}
 			if m.edit != nil && m.edit.line == i {
+				markEdit(width(mark)+shown(s), w-6-shown(s))
 				add(mark+strings.Repeat(" ", shown(s))+m.edit.p.field(w-6-shown(s), fg(cTxt)), i, -1)
 				break
 			}
@@ -351,7 +364,7 @@ func (m *model) todoPane(w, h int) []string {
 				if c > 0 {
 					lead = "    "
 				}
-				add(lead+strings.Repeat(" ", shown(s))+st.Render(ch), i, -1)
+				add(lead+strings.Repeat(" ", shown(s))+paths.Style(ch, st, linkStyle(st)), i, -1)
 			}
 		}
 		if on {
@@ -369,6 +382,9 @@ func (m *model) todoPane(w, h int) []string {
 		}
 	}
 	m.top = max(0, min(m.top, len(out)-h))
+	if editAt >= m.top && editAt < m.top+h {
+		m.editY, m.editX = m.bodyY+editAt-m.top, editCol
+	}
 	view := make([]string, h)
 	m.rightRows, m.boxX = make([]int, h), make([]int, h)
 	for r := 0; r < h; r++ {
@@ -459,3 +475,6 @@ func (m *model) helpView() string {
 	lines = append(lines, " "+keyHints("j/k", "scroll", "h", hl, "e", "edit settings", "esc", "close"))
 	return strings.Join(lines, "\n")
 }
+
+// linkStyle: how a path that exists looks inside text drawn with st
+func linkStyle(st lipgloss.Style) lipgloss.Style { return st.Foreground(cAcc).Underline(true) }

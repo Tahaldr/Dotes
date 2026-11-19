@@ -5,6 +5,7 @@ package git
 
 import (
 	"fmt"
+	dotesapp "github.com/Tahaldr/dotes/internal/app"
 	"net/url"
 	"os"
 	"os/exec"
@@ -629,6 +630,8 @@ func (m *model) exKey(s string) tea.Cmd {
 		return m.actOpen("nvim")
 	case "L":
 		return m.actOpen("lazygit")
+	case "ctrl+f":
+		return m.actOpen("files")
 	case "p":
 		return m.chPull()
 	case "P":
@@ -709,13 +712,25 @@ func (m *model) actOpen(app string) tea.Cmd {
 }
 
 func appName(app string) string {
-	if app == "nvim" {
+	switch app {
+	case "nvim":
 		return "Nvim"
+	case "files":
+		return "Files"
 	}
 	return app
 }
 
 func (m *model) runApp(app, dir string) tea.Cmd {
+	if app == "files" { // the Files part, on the highlighted file or folder
+		target := dir
+		if f := m.exFile(); f != "" {
+			if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(f))); err == nil {
+				target = filepath.Join(dir, filepath.FromSlash(f))
+			}
+		}
+		return dotesapp.Open("files", target)
+	}
 	var c *exec.Cmd
 	switch app {
 	case "nvim":

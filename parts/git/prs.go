@@ -471,6 +471,8 @@ func (m *model) prTabKey(s string) tea.Cmd {
 		return m.prOpenLocal("nvim")
 	case "L":
 		return m.prOpenLocal("lazygit")
+	case "ctrl+f":
+		return m.prOpenLocal("files")
 	case "l", "right":
 		m.focus = 1
 	case "h", "left":

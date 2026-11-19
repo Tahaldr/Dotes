@@ -171,21 +171,29 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.w, m.h = msg.Width, msg.Height
 		files.OriginY = m.barH()
 		return m, m.broadcast(tea.WindowSizeMsg{Width: m.w, Height: m.h - m.barH()})
-	case app.SwitchMsg: // Home opens another part
+	case app.SwitchMsg: // Home opens another part; Files, Git and Notes link to each other
+		at := -1
 		for i, p := range m.parts {
 			if p.info.ID == msg.ID {
-				return m, m.switchTo(i)
+				at = i
 			}
 		}
-		if m.makers[msg.ID] != nil { // not picked: add it for this run
+		if at < 0 && m.makers[msg.ID] != nil { // not picked: add it for this run
 			for _, info := range app.Parts {
 				if info.ID == msg.ID {
 					m.parts = append(m.parts, &part{info: info, make: m.makers[msg.ID]})
-					return m, m.switchTo(len(m.parts) - 1)
+					at = len(m.parts) - 1
 				}
 			}
 		}
-		return m, nil
+		if at < 0 {
+			return m, nil
+		}
+		cmd := m.switchTo(at)
+		if msg.Path != "" {
+			cmd = tea.Batch(cmd, m.toActive(app.OpenMsg{Path: msg.Path}))
+		}
+		return m, cmd
 	case app.UpdateMsg:
 		if app.Newer(msg.Latest, app.Version) {
 			m.newVer = msg.Latest

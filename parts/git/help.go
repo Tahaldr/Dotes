@@ -46,6 +46,7 @@ func helpData() []helpSec {
 			{"v", "read its README full screen"},
 			{"/", "filter by name, description or language"},
 			{"e  L", "open it in your editor / git tool (offers to clone first)"},
+			{"ctrl+f", "open its folder in Files"},
 			{"c", "clone it"},
 			{"p  P", "pull / push (repos on this PC)"},
 			{"N", "new repo: empty (opens its Quick setup), empty + clone, or upload a folder"},
@@ -64,6 +65,7 @@ func helpData() []helpSec {
 			{"/", "find a file anywhere in the repo, or an item in the section"},
 			{"crumbs", "click the path at the top to jump back"},
 			{"e  L", "editor (the highlighted file) / git tool"},
+			{"ctrl+f", "show the highlighted file or folder in Files"},
 			{"p  P", "pull / push"},
 		}},
 		{"Changes (repos on this PC)", []hint{

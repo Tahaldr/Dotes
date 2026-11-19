@@ -1,6 +1,7 @@
 package notes
 
 import (
+	"github.com/Tahaldr/dotes/internal/app"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,6 +24,10 @@ type editState struct {
 	line  int
 	isNew bool
 	prio  string // the @priority tag, kept out of the text while typing
+
+	comp     *compState // tab cycling through path suggestions
+	sugWord  string     // the path the suggestions below are for
+	sugItems []string
 }
 
 type model struct {
@@ -74,6 +79,7 @@ type model struct {
 	cols         int        // cards per row on the board
 	cards        []cardRect // where each card is
 	pageX        int        // where the open list's page starts
+	editY, editX int        // where the todo being typed is on screen (-1 = not shown)
 	rightRows    []int      // doc line per body row (-1 = none, -2 = the way back)
 	boxX         []int      // where the checkbox is on that row
 	lastClick    time.Time
@@ -389,6 +395,17 @@ func (d *todoDoc) rollback() {
 
 func (m *model) editKey(k tea.KeyPressMsg) tea.Cmd {
 	e, d := m.edit, m.doc
+	switch s := k.String(); s {
+	case "tab", "shift+tab": // in a path: put a suggestion in
+		if e.complete(s == "tab") {
+			return nil
+		}
+	case "enter", "esc": // after tab: keep the suggestion, go on typing
+		if c := e.comp; c != nil && string(e.p.text) == c.text && e.p.pos == c.pos {
+			e.comp = nil
+			return nil
+		}
+	}
 	switch k.String() {
 	case "tab", "shift+tab":
 		dir := 1
@@ -546,6 +563,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.w, m.h = msg.Width, msg.Height
+	case app.OpenMsg: // Files' gn: this folder's note
+		m.openProject(msg.Path)
 	case tickMsg:
 		if m.edit == nil && m.prompt == nil && m.finder == nil && m.menu == nil {
 			if m.refresh() && m.doc == nil {
@@ -682,6 +701,8 @@ func (m *model) comboKey(c string) tea.Cmd {
 			m.reg = m.doc.copyTree(m.cur)
 			m.setNote("copied · p pastes below, P above", false)
 		}
+	case "gf":
+		return m.followPaths()
 	case "cc":
 		if m.cur >= 0 {
 			m.startEdit(m.cur, false, -1, true)

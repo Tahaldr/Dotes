@@ -7,7 +7,8 @@ import "github.com/Tahaldr/dotes/internal/app"
 
 var comboKeys = map[string][][2]string{
 	"g": {{"g", "top"}, {"h", "home"}, {"d", "Downloads"}, {"D", "Documents"}, {"c", "config folder"},
-		{"space", "type a path"}, {"f", "follow link"}, {"t", "Recycle Bin"}, {"p", "recent projects"}},
+		{"space", "type a path"}, {"f", "follow link"}, {"t", "Recycle Bin"}, {"p", "recent projects"},
+		{"i", "open in Git"}, {"n", "project notes"}},
 	"c": {{"c", "copy path"}, {"d", "copy folder path"}, {"f", "copy name"}, {"n", "copy name, no extension"}},
 	",": {{"m", "modified"}, {"b", "created"}, {"s", "size"}, {"a", "name A-Z"}, {"n", "natural name"},
 		{"e", "extension"}, {"r", "random"}, {"shift", "reversed"}},

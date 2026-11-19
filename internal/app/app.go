@@ -184,8 +184,13 @@ func ImportOld(oldApp, oldName, newName string) bool {
 // ShownMsg goes to every running part when the visible part changes (ID = the one shown now).
 type ShownMsg struct{ ID string }
 
-// SwitchMsg asks the shell to show another part (Home's apps do this).
-type SwitchMsg struct{ ID string }
+// SwitchMsg asks the shell to show another part (Home's apps do this). With a Path the
+// shell then hands that part an OpenMsg: Files goes there, Git opens the repo it's in,
+// Notes opens the folder's project note.
+type SwitchMsg struct{ ID, Path string }
+
+// OpenMsg goes to the part just shown: open Path in it.
+type OpenMsg struct{ Path string }
 
 // ExitCode is what Dotes exits with. ExitCloseTab tells the shell function to close the
 // terminal tab too (x on Home).

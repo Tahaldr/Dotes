@@ -2,6 +2,7 @@ package git
 
 import (
 	"fmt"
+	dotesapp "github.com/Tahaldr/dotes/internal/app"
 	"io"
 	"os"
 	"os/exec"
@@ -463,6 +464,12 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.spinning = false
 		return m, nil
+	case dotesapp.OpenMsg: // Files' gi: a folder on this PC
+		if m.w == 0 { // not drawn yet: once the size is known
+			m.first = func(m *model) tea.Cmd { return m.openDir(msg.Path) }
+			return m, nil
+		}
+		return m, m.openDir(msg.Path)
 	case tea.WindowSizeMsg:
 		m.w, m.h = msg.Width, msg.Height
 		if f := m.first; f != nil { // what the command line asked for (dotes g OWNER/REPO, …)
@@ -1078,6 +1085,8 @@ func (m *model) key(k tea.KeyPressMsg) tea.Cmd {
 		return m.actOpen("nvim")
 	case "L":
 		return m.actOpen("lazygit")
+	case "ctrl+f":
+		return m.actOpen("files")
 	case "p":
 		return m.actPull()
 	case "P":
@@ -1677,6 +1686,8 @@ func (m *model) runButton(i int) tea.Cmd {
 		return m.actOpen("nvim")
 	case "lazygit":
 		return m.actOpen("lazygit")
+	case "files":
+		return m.actOpen("files")
 	case "pull":
 		if m.exActive() != nil {
 			return m.chPull()
@@ -1772,6 +1783,7 @@ func (m *model) commands() []command {
 		command{"Read full screen", "v", func(m *model) tea.Cmd { return m.actRead() }},
 		command{"Open in Nvim", "e", func(m *model) tea.Cmd { return m.actOpen("nvim") }},
 		command{"Open in lazygit", "L", func(m *model) tea.Cmd { return m.actOpen("lazygit") }},
+		command{"Open the folder in Files", "ctrl+f", func(m *model) tea.Cmd { return m.actOpen("files") }},
 		command{"Pull from GitHub", "p", func(m *model) tea.Cmd {
 			if m.exActive() != nil {
 				return m.chPull()

@@ -53,6 +53,7 @@ var keyTable = []keyHelp{
 	{"note", "Note", "j / k  ctrl+d / ctrl+u", "scroll", "scroll"},
 	{"note", "Note", "enter / e", "open it in your editor (where you've scrolled to)", "edit"},
 	{"note", "Note", "r / d", "rename / delete it", ""},
+	{"note", "Note", "gf", "open a path from the note in Files (a menu when there are more)", "open path"},
 	{"note", "Note", "h / esc", "back to the board", "back"},
 
 	{"todos", "Todos", "enter / space / x", "tick / untick (sub-todos follow, a parent ticks when all its are)", "tick"},
@@ -73,6 +74,7 @@ var keyTable = []keyHelp{
 	{"todos", "Todos", "A", "archive: move the done ones under ## Archive", "archive"},
 	{"todos", "Todos", "u / ctrl+r", "undo / redo", "undo"},
 	{"todos", "Todos", "E", "open the file in your editor on this line", ""},
+	{"todos", "Todos", "gf", "open the path in this todo in Files (paths on this PC are underlined)", "open path"},
 	{"todos", "Todos", "h / esc", "back to the board", "back"},
 
 	{"today", "Today", "x / space", "tick it (it's saved in its list)", "tick"},
@@ -84,6 +86,7 @@ var keyTable = []keyHelp{
 	{"edit", "Typing", "esc", "save and stop (an empty new todo goes away)", "done"},
 	{"edit", "Typing", "ctrl+c", "stop without saving the change", "cancel"},
 	{"edit", "Typing", "tab / shift+tab", "make it a sub-todo / take it out one level", "indent"},
+	{"edit", "Typing", "~/  C:\\", "start a path: its folder's files pop up, tab / shift+tab put one in, enter keeps it", "path"},
 	{"edit", "Typing", "ctrl+w  ctrl+u", "delete a word / everything before the cursor", ""},
 
 	{"", "Other", "~ / F1", "this page (h here hides / shows the key hints)", "all keys"},
@@ -150,7 +153,7 @@ func hintRows(ctx string, w, maxRows int) []string {
 // ---- which-key: after the first key of a combo, a popup lists what can follow ----
 
 var comboKeys = map[string][][2]string{
-	"g": {{"g", "top"}},
+	"g": {{"g", "top"}, {"f", "open the path in Files"}},
 	"d": {{"d", "delete the todo"}},
 	"y": {{"y", "copy the todo"}},
 	"c": {{"c", "change: retype the text"}},

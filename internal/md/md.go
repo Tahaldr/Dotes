@@ -7,6 +7,7 @@ package md
 
 import (
 	"fmt"
+	"github.com/Tahaldr/dotes/internal/paths"
 	"image/color"
 	"regexp"
 	"strconv"
@@ -477,7 +478,11 @@ func (r *mdr) inline(n ast.Node, st lipgloss.Style) string {
 			if box {
 				t = strings.TrimLeft(t, " ")
 			}
-			b.WriteString(st.Render(t))
+			if r.fade {
+				b.WriteString(st.Render(t))
+			} else { // paths on this PC look like links (Notes: gf opens them in Files)
+				b.WriteString(paths.Style(t, st, st.Foreground(cAcc).Underline(true)))
+			}
 			switch {
 			case c.HardLineBreak():
 				b.WriteString("\n")
