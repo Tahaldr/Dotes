@@ -39,7 +39,8 @@ the part you're in.
 - `files.txt`: Files settings (and `files-bookmarks.txt`)
 - `notes.txt`: Notes settings (your notebook folder, editor, inbox list)
 - `git.txt`: Git settings (start tab, where to clone, editor, git tool)
-- `home.txt`: Home settings (apps, layout, logo, prayer times, project folders)
+- `home.txt`: Home settings (apps, layout, logo, prayer times, project folders), e.g.
+  `prayer = Casablanca | Morocco | 21` for prayer times with a countdown
 
 Coming from TermNook, TermFiles, TermNotes or TermGit? Their settings and bookmarks are copied over the first time.
 

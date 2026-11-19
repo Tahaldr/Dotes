@@ -66,7 +66,7 @@ recent = off
 
 # today's prayer times with a countdown (from api.aladhan.com once a month). Empty = off.
 #   prayer = City | Country | method   (methods: https://aladhan.com/calculation-methods)
-# prayer = London | United Kingdom | 3
+# prayer = Casablanca | Morocco | 21
 prayer =
 
 # your apps, in order:  app = Name | hint | key | icon | command

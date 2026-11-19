@@ -137,7 +137,7 @@ func TestImportTermNook(t *testing.T) {
     Logo   = 'my-logo.txt'
     GitHub = 'someone'
     Recent = $false
-    Prayer = @{ City = 'Springfield'; Country = 'Nowhere'; Method = 21 }
+    Prayer = @{ City = 'Casablanca'; Country = 'Morocco'; Method = 21 }
     Apps = @(
         @{ Name = 'Nvim';    Hint = 'editor';    Key = 'n'; Icon = 0xF36F;  Run = 'nvim .' }
         @{ Name = 'GitHub';  Hint = 'termgit';   Key = 'g'; Icon = 0xF09B;  Run = 'termgit' }
