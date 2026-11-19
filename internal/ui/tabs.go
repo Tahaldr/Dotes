@@ -21,8 +21,17 @@ type Tab struct {
 	Off        bool   // not ready yet: muted
 }
 
-// PartColor: each part's own color (muted onedark), for its icon and its name in the switcher
-var PartColor = map[string]color.Color{"Home": Acc, "Files": Yellow, "Notes": Purple, "Git": Orange}
+// PartColor: each part's color, taken from what it shows most, so you know where you are
+// at a glance (the icon in its tab row, its name in the switcher, its panel on Home):
+//
+//	Home   purple  the end of the Dotes logo's gradient
+//	Files  blue    folders are blue in the list
+//	Notes  green   a ticked todo is green
+//	Git    orange  Git's own color
+var PartColor = map[string]color.Color{"Home": Purple, "Files": Acc, "Notes": Green, "Git": Orange}
+
+// PartFG: the part's color as a style
+func PartFG(name string) lipgloss.Style { return partFG(name) }
 
 func partFG(name string) lipgloss.Style {
 	if c, ok := PartColor[name]; ok {

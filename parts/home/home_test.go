@@ -54,7 +54,7 @@ func TestFirstFrameEverySize(t *testing.T) {
 func TestCardsMoveOpen(t *testing.T) {
 	m := fresh(t)
 	o := run(m, 110, 30)
-	if !strings.Contains(o, "Nvim") || !strings.Contains(o, "Projects") || !strings.Contains(o, "Home") {
+	if !strings.Contains(o, "Nvim") || strings.Contains(o, "pick one") || !strings.Contains(o, "Home") {
 		t.Fatalf("cards:\n%s", o)
 	}
 	if strings.Contains(o, "file manager") || strings.Contains(o, "todos and notes") {

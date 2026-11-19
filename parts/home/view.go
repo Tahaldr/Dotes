@@ -173,7 +173,11 @@ func (m *model) panelBox(p panel, w int) []string {
 	t := m.cfg.th
 	b := fg(t.selBg)
 	inner := w - 2
-	title := fg(t.acc).Render(p.icon) + " " + fg(t.txt).Bold(true).Render(p.title)
+	ic := fg(t.acc) // the part's own color: the same as its name at the top
+	if p.part != "" {
+		ic = ui.PartFG(map[string]string{"files": "Files", "notes": "Notes", "git": "Git"}[p.part])
+	}
+	title := ic.Render(p.icon) + " " + fg(t.txt).Bold(true).Render(p.title)
 	top := b.Render("╭─ ") + title + " "
 	if p.badge != "" {
 		fill := inner - 3 - width(title) - 1 - width(p.badge) - 2

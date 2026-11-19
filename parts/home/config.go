@@ -96,7 +96,6 @@ prayer =
 #            (empty)                       back to the prompt
 app = Nvim | editor | n | f36f | nvim .
 app = VS Code | code | v | f0a1e | code .
-app = Projects | pick one | p | f07b | projects
 # The Dotes parts (Files, Notes, Git) are at the top of every screen, with a glance at
 # each one under your apps, so they aren't apps here.
 
