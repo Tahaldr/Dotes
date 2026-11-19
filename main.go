@@ -16,6 +16,7 @@ import (
 	"github.com/Tahaldr/dotes/internal/ui"
 	"github.com/Tahaldr/dotes/parts/files"
 	"github.com/Tahaldr/dotes/parts/git"
+	"github.com/Tahaldr/dotes/parts/home"
 	"github.com/Tahaldr/dotes/parts/notes"
 	"github.com/Tahaldr/dotes/shell"
 	"github.com/charmbracelet/x/ansi"
@@ -24,6 +25,7 @@ import (
 var usage = `Dotes ` + app.Version + ` - one terminal app with the parts you pick
 
   dotes                             open your first part (alt+1-9 or a click on the top bar switches)
+` + home.Usage + `
 ` + files.Usage + `
 ` + notes.Usage + `
 ` + git.Usage + `
@@ -124,6 +126,38 @@ func main() {
 				fail("unknown option " + args[i])
 			}
 		}
+	case "h", "home":
+		o.Start = "home"
+		if len(args) > 0 {
+			switch args[0] {
+			case "salat", "prayer":
+				home.Salat()
+				return
+			case "projects", "p":
+				o.Projects, o.NoBar = true, true
+			case "quick", "q":
+				a := home.Quick()
+				if a == nil {
+					return
+				}
+				switch id := home.PartOf(a.Run()); {
+				case id != "":
+					o.Start = id
+				case a.Run() == "projects":
+					o.Projects, o.NoBar = true, true
+				default:
+					wd, _ := os.Getwd()
+					c := home.Command(a.Run(), wd)
+					c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+					if err := c.Run(); err != nil {
+						fmt.Fprintln(os.Stderr, "dotes: "+a.Name()+" failed: "+err.Error())
+					}
+					return
+				}
+			default:
+				fail("unknown option " + args[0])
+			}
+		}
 	case "g", "git":
 		git.LoadConfig()
 		l := git.Command(args)
@@ -154,6 +188,9 @@ func main() {
 	}
 	for _, msg := range sh.ExitMessages() {
 		fmt.Println(msg)
+	}
+	if app.ExitCode != 0 {
+		os.Exit(app.ExitCode)
 	}
 	if o.Setup {
 		fmt.Println("Saved. Your parts: " + strings.Join(app.LoadShared().Parts, ", ") + ". Run  dotes  to open them.")
@@ -195,7 +232,7 @@ func crashed(err error) {
 	os.Exit(1)
 }
 
-// dump: dotes --dump WxH [files|notes|git|setup] [dir:PATH] [notebook:PATH] [file:PATH] keys...  prints one screen without a terminal
+// dump: dotes --dump WxH [home|files|notes|git|setup] [dir:PATH] [notebook:PATH] [file:PATH] keys...  prints one screen without a terminal
 func dump(args []string) {
 	w, h := 120, 30
 	if len(args) > 0 {
@@ -208,7 +245,7 @@ func dump(args []string) {
 		}
 	}
 	o := shell.Options{FilesPath: ".", Dump: true}
-	if len(args) > 0 && (args[0] == "files" || args[0] == "notes" || args[0] == "git" || args[0] == "setup") {
+	if len(args) > 0 && (args[0] == "home" || args[0] == "files" || args[0] == "notes" || args[0] == "git" || args[0] == "setup") {
 		if args[0] == "setup" {
 			o.Setup = true
 		} else {

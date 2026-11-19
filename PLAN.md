@@ -55,7 +55,7 @@ One batch at a time; next only when the user says.
    overlay/which-key/hints with Files. Same Notebook files as the nvim popup.
 3. ✅ **Git part** (v0.3.0; recent repos on Home moved from alt+1-5 to shift+1-5, alt+digits switch parts). TermGit moved in (`dotes g`, all screens, `dotes g file.md` reader).
    Biggest batch (~17k lines). Keep TestFirstFrameEveryTab.
-4. **Home part.** TermNook rewritten in Go: dashboard layouts (cards/info/palette/list),
+4. ✅ **Home part** (v0.4.0; settings moved from TermNook automatically, x closes the tab through the shell function). TermNook rewritten in Go: dashboard layouts (cards/info/palette/list),
    apps launcher, quick picker, project picker (uses the Files part), prayer times,
    logo, recent. A small profile function so `dotes` can cd the shell and launch apps.
 5. **Links between parts + Notes path mentions.**

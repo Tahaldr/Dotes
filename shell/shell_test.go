@@ -56,11 +56,11 @@ func TestSetupFirstRun(t *testing.T) {
 	if app.HasShared() {
 		t.Fatal("dotes.txt must not exist before the user picks")
 	}
-	o := run(m, 100, 20, "a", "space", "enter") // all off, pick Home (not ready yet)
+	o := run(m, 100, 30, "a", "space", "enter") // all off, pick Home only
 	if !app.HasShared() || strings.Join(app.LoadShared().Parts, ",") != "home" {
 		t.Fatalf("saved parts: %v\n%s", app.LoadShared().Parts, o)
 	}
-	if !strings.Contains(o, "Nothing to show yet") {
+	if !strings.Contains(o, "1 Home") || !strings.Contains(o, "Nvim") {
 		t.Fatalf("no ready part picked:\n%s", o)
 	}
 	m = New(Options{Notebook: t.TempDir(), FilesPath: t.TempDir(), Dump: true, Setup: true})
@@ -132,6 +132,24 @@ func TestNotesPart(t *testing.T) {
 		m := New(Options{Start: "notes", Notebook: nb, Dump: true})
 		m.View()
 		run(m, sz[0], sz[1])
+	}
+	app.SaveParts([]string{"files"})
+}
+
+func TestHomeSwitchesParts(t *testing.T) {
+	app.SaveParts([]string{"home", "files"})
+	m := New(Options{Notebook: t.TempDir(), FilesPath: t.TempDir(), Dump: true})
+	run(m, 110, 30)
+	if m.cur().info.ID != "home" {
+		t.Fatalf("dotes opens Home first, got %s", m.cur().info.ID)
+	}
+	run(m, 110, 30, "f") // the Files app on Home
+	if m.cur().info.ID != "files" {
+		t.Fatalf("f on Home should show Files, got %s", m.cur().info.ID)
+	}
+	run(m, 110, 30, "alt+1", "o") // Notes isn't picked: it's added for this run
+	if m.cur().info.ID != "notes" || len(m.parts) != 3 {
+		t.Fatalf("o on Home should open Notes, got %s (%d parts)", m.cur().info.ID, len(m.parts))
 	}
 	app.SaveParts([]string{"files"})
 }

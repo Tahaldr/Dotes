@@ -11,6 +11,7 @@ import (
 	"github.com/Tahaldr/dotes/internal/ui"
 	"github.com/Tahaldr/dotes/parts/files"
 	"github.com/Tahaldr/dotes/parts/git"
+	"github.com/Tahaldr/dotes/parts/home"
 	"github.com/Tahaldr/dotes/parts/notes"
 )
 
@@ -43,6 +44,7 @@ type Options struct {
 	FilesPath string
 	Notebook  string      // Notes: another notebook folder
 	Git       *git.Launch // Git: what dotes g ... asked for
+	Projects  bool        // Home: open the project picker straight away
 	NoBar     bool        // pick mode: just the part
 	Setup     bool        // dotes setup: only the picker
 	Dump      bool
@@ -52,6 +54,9 @@ type Options struct {
 func New(o Options) *Model {
 	m := &Model{dump: o.Dump, only: o.Setup}
 	m.makers = map[string]Maker{
+		"home": func() tea.Model {
+			return home.New(home.Options{CwdFile: o.Files.CwdFile, Projects: o.Projects, Dump: o.Dump})
+		},
 		"files": func() tea.Model {
 			files.LoadConfig()
 			fo := o.Files
@@ -166,6 +171,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.w, m.h = msg.Width, msg.Height
 		files.OriginY = m.barH()
 		return m, m.broadcast(tea.WindowSizeMsg{Width: m.w, Height: m.h - m.barH()})
+	case app.SwitchMsg: // Home opens another part
+		for i, p := range m.parts {
+			if p.info.ID == msg.ID {
+				return m, m.switchTo(i)
+			}
+		}
+		if m.makers[msg.ID] != nil { // not picked: add it for this run
+			for _, info := range app.Parts {
+				if info.ID == msg.ID {
+					m.parts = append(m.parts, &part{info: info, make: m.makers[msg.ID]})
+					return m, m.switchTo(len(m.parts) - 1)
+				}
+			}
+		}
+		return m, nil
 	case app.UpdateMsg:
 		if app.Newer(msg.Latest, app.Version) {
 			m.newVer = msg.Latest

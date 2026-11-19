@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const Version = "0.3.0"
+const Version = "0.4.0"
 
 // Parts, in tab order. Key is the short command (dotes f) and the alt+N order.
 type PartInfo struct {
@@ -17,7 +17,7 @@ type PartInfo struct {
 }
 
 var Parts = []PartInfo{
-	{"home", "Home", "h", "dashboard, app launcher, projects, prayer times", false},
+	{"home", "Home", "h", "dashboard, app launcher, projects, prayer times", true},
 	{"files", "Files", "f", "a yazi-style file manager", true},
 	{"notes", "Notes", "n", "todo lists and notes", true},
 	{"git", "Git", "g", "GitHub and Git: repos, changes, PRs, issues, CI", true},
@@ -183,3 +183,12 @@ func ImportOld(oldApp, oldName, newName string) bool {
 
 // ShownMsg goes to every running part when the visible part changes (ID = the one shown now).
 type ShownMsg struct{ ID string }
+
+// SwitchMsg asks the shell to show another part (Home's apps do this).
+type SwitchMsg struct{ ID string }
+
+// ExitCode is what Dotes exits with. ExitCloseTab tells the shell function to close the
+// terminal tab too (x on Home).
+var ExitCode int
+
+const ExitCloseTab = 3
