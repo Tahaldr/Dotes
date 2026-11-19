@@ -365,3 +365,15 @@ func TestLiveReload(t *testing.T) {
 		t.Fatalf("not reloaded:\n%s", v)
 	}
 }
+
+// Home's Notes panel can show one list: its open todos, dated ones first
+func TestGlanceOneList(t *testing.T) {
+	notebook(t, sample)
+	g := Glance(3, "groceries")
+	if g.List != "Groceries" || g.Open != 3 || len(g.Items) != 3 || g.Items[0].Text != "milk" {
+		t.Fatalf("%+v", g)
+	}
+	if g := Glance(3, "gone"); g.List != "" {
+		t.Fatalf("a list that's gone: what's due instead, got %q", g.List)
+	}
+}

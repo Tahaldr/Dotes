@@ -181,6 +181,7 @@ dotes --help    everything
 | `←→` `↑↓` / `tab` | pick an app |
 | `enter` / its letter | open it |
 | `space` (or `↓` past the last row) | to the panels; `tab` next panel, `↑↓` a line, `enter` open it |
+| `c` on the Notes panel | which todo list it shows (or what's due from all of them) |
 | `q` | back to the prompt |
 | `x` | close the terminal tab |
 </details>

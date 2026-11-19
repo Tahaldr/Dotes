@@ -27,6 +27,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/Tahaldr/dotes/internal/rtl"
 	"github.com/Tahaldr/dotes/internal/ui"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func fg(c color.Color) lipgloss.Style { return ui.FG(c) }
@@ -225,6 +226,9 @@ func (m *model) panels(iw int) []panel {
 	if m.on["notes"] && m.notesG != nil {
 		g := m.notesG
 		p := panel{icon: icNotes, title: "Notes", part: "notes"}
+		if g.List != "" {
+			p.title = g.List // the list picked with c
+		}
 		switch {
 		case g.Late > 0:
 			p.badge = fg(ui.Red).Render(fmt.Sprintf("%d late", g.Late))
@@ -242,7 +246,7 @@ func (m *model) panels(iw int) []panel {
 		}
 		if len(p.lines) == 0 {
 			p.lines = []string{mu.Render("nothing to do"), mu.Render(fmt.Sprintf("%d lists · %d notes", g.Lists, g.Notes))}
-		} else if g.NothingDue && len(p.lines) < panelRows {
+		} else if g.NothingDue && g.List == "" && len(p.lines) < panelRows {
 			p.lines = append(p.lines, mu.Render("nothing due · from "+g.Items[0].List))
 		}
 		out = append(out, p)
@@ -430,6 +434,9 @@ func (m *model) dashboard() string {
 	}
 	if m.inPanels {
 		help = "tab next panel   ↑↓ pick a line   enter open   space apps   q back to the prompt   F1 keys"
+		if m.psel < len(m.shown) && m.shown[m.psel].part == "notes" {
+			help = "tab next panel   ↑↓ pick a line   enter open   c which list   space apps   F1 keys"
+		}
 	}
 	if !m.hintsOn {
 		help = "F1 keys"
@@ -499,6 +506,9 @@ func (m *model) dashboard() string {
 	for len(screen) < h-len(foot) {
 		screen = append(screen, "")
 	}
+	if m.chooser != nil {
+		m.chooserPopup(screen)
+	}
 	screen = append(screen[:min(len(screen), h-len(foot))], foot...)
 	for i := range screen {
 		screen[i] = ui.Pad(screen[i], w)
@@ -543,7 +553,7 @@ func (m *model) keysPage() string {
 	lines := []string{"", "  " + fg(t.acc).Render("Home keys"), "",
 		"  " + h("DASHBOARD"),
 		"    " + k("arrows") + mu(" / ") + k("tab") + mu(" move   ") + k("enter") + mu(" / click open   ") + k(strings.Join(keys, " ")) + mu(" open directly   ") + k("q") + mu(" / ") + k("esc") + mu(" back to the prompt"),
-		"    " + k("space") + mu(" to the panels and back (or ↓ past the last row)   in the panels: ") + k("tab") + mu(" / ") + k("←→") + mu(" next panel   ") + k("↑↓") + mu(" a line   ") + k("enter") + mu(" open it"),
+		"    " + k("space") + mu(" to the panels and back (or ↓ past the last row)   in the panels: ") + k("tab") + mu(" / ") + k("←→") + mu(" next panel   ") + k("↑↓") + mu(" a line   ") + k("enter") + mu(" open it   ") + k("c") + mu(" on Notes: which todo list it shows"),
 		"    " + k("x") + mu(" close the terminal tab   ") + k("alt+1-9") + mu(" / the names at the top: the other Dotes parts   ") + k("F1") + mu(" this page"),
 		"    " + mu("click a panel to open its part, a line in it to go right there (a repo, a project)"),
 		"",
@@ -560,4 +570,38 @@ func (m *model) keysPage() string {
 		lines = append(lines, strings.Repeat(" ", m.w))
 	}
 	return strings.Join(lines[:m.h], "\n")
+}
+
+// chooserPopup: which todo list the Notes panel shows
+func (m *model) chooserPopup(screen []string) {
+	t := m.cfg.th
+	c := m.chooser
+	iw := 38
+	for _, it := range c.items {
+		iw = max(iw, width(it)+6)
+	}
+	iw = min(iw, m.w-4)
+	b := fg(t.acc)
+	v := b.Render("│")
+	title := " Notes panel shows "
+	box := []string{b.Render("╭─" + title + strings.Repeat("─", max(0, iw-1-width(title))) + "╮")}
+	for i, it := range c.items {
+		name, st, mark := it, fg(t.txt), "  "
+		if it == "" {
+			name, st = "What's due, from every list", fg(t.selHint)
+		}
+		if i == c.sel {
+			st, mark = fg(t.acc).Bold(true), fg(t.acc).Render("❯ ")
+		}
+		box = append(box, v+" "+mark+st.Render(ui.Pad(name, iw-4))+" "+v)
+	}
+	box = append(box, v+fg(t.mut).Render(ui.Pad("  ↑↓ move   enter pick   esc close", iw))+v, b.Render("╰"+strings.Repeat("─", iw)+"╯"))
+	y0 := max(0, (len(screen)-len(box))/2)
+	x0 := max(0, (m.w-iw-2)/2)
+	for i, l := range box {
+		if y := y0 + i; y < len(screen) {
+			row := ui.Pad(screen[y], m.w)
+			screen[y] = ansi.Truncate(row, x0, "") + "\x1b[0m" + l + "\x1b[0m" + ansi.TruncateLeft(row, x0+iw+2, "")
+		}
+	}
 }

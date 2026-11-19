@@ -59,9 +59,10 @@ type model struct {
 	pzones []pzone
 	shown  []panel // the panels on screen now (for the keys)
 
-	inPanels   bool // the keyboard is on the panels (space), not the cards
-	psel       int  // which panel
-	pline      int  // which line in it (-1 = the panel itself)
+	inPanels   bool         // the keyboard is on the panels (space), not the cards
+	psel       int          // which panel
+	pline      int          // which line in it (-1 = the panel itself)
+	chooser    *listChooser // c on the Notes panel: which todo list it shows
 	ticks      int
 	looking    bool // a glance is being gathered in the background
 	glanceDump bool // --dump: gather it at once (tests leave it off: no git, no zoxide)
@@ -113,7 +114,7 @@ func isProject(d string) bool {
 // lookNotes reads the notebook (fast: done right here)
 func (m *model) lookNotes() {
 	if m.on["notes"] && (!m.dump || notes.Ready()) { // tests: only with a test notebook
-		g := notes.Glance(panelRows)
+		g := notes.Glance(panelRows, m.cfg.notesList)
 		m.notesG = &g
 	}
 }
@@ -306,6 +307,32 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// listChooser: the small popup that picks the Notes panel's list ("" = what's due)
+type listChooser struct {
+	items []string
+	sel   int
+}
+
+func (m *model) chooseKey(s string) tea.Cmd {
+	c := m.chooser
+	switch s {
+	case "up", "k", "shift+tab":
+		c.sel = (c.sel + len(c.items) - 1) % len(c.items)
+	case "down", "j", "tab":
+		c.sel = (c.sel + 1) % len(c.items)
+	case "enter":
+		m.cfg.notesList = c.items[c.sel]
+		if !m.dump {
+			app.SetKV(configFile(), defaultConfig, "notes_list", m.cfg.notesList)
+		}
+		m.chooser = nil
+		m.lookNotes()
+	case "esc", "q", "c":
+		m.chooser = nil
+	}
+	return nil
+}
+
 // panelKey: the keyboard on the glance panels
 func (m *model) panelKey(s string) tea.Cmd {
 	n := len(m.shown)
@@ -334,6 +361,15 @@ func (m *model) panelKey(s string) tea.Cmd {
 		}
 	case "space", "esc":
 		m.inPanels = false
+	case "c": // the Notes panel: pick the todo list it shows
+		if p.part == "notes" && !m.dump || p.part == "notes" && notes.Ready() {
+			m.chooser = &listChooser{items: append([]string{""}, notes.TodoLists()...)}
+			for i, it := range m.chooser.items {
+				if strings.EqualFold(it, m.cfg.notesList) {
+					m.chooser.sel = i
+				}
+			}
+		}
 	case "enter":
 		if p.part == "" {
 			return nil
@@ -383,6 +419,9 @@ func (m *model) key(k tea.KeyPressMsg) tea.Cmd {
 		return tea.Quit
 	case "ctrl+c":
 		return tea.Quit
+	}
+	if m.chooser != nil {
+		return m.chooseKey(s)
 	}
 	if m.inPanels {
 		return m.panelKey(s)

@@ -56,18 +56,19 @@ type theme struct {
 }
 
 type config struct {
-	style    string // cards, info, palette, list
-	logo     []string
-	github   string
-	recent   bool
-	prayer   *prayerCfg
-	apps     []appItem
-	roots    []string // project folders
-	openWith []appItem
-	search   string
-	skip     []string
-	th       theme
-	warnings []string
+	style     string // cards, info, palette, list
+	logo      []string
+	github    string
+	notesList string // the todo list on the Notes panel ("" = what's due)
+	recent    bool
+	prayer    *prayerCfg
+	apps      []appItem
+	roots     []string // project folders
+	openWith  []appItem
+	search    string
+	skip      []string
+	th        theme
+	warnings  []string
 }
 
 const defaultConfig = `# Home settings (Dotes): key = value. Lines starting with # are ignored.
@@ -75,6 +76,10 @@ const defaultConfig = `# Home settings (Dotes): key = value. Lines starting with
 
 # the logo: a text file in this folder (empty = none)
 logo = home-logo.txt
+
+# the todo list on Home's Notes panel (its title; empty = what's due from every list).
+# On Home: space to the panels, Notes, then c to pick one.
+notes_list =
 
 # your GitHub user, shown as a link in the info layout (empty hides it)
 github =
@@ -139,6 +144,8 @@ func loadConfig() config {
 		case "style": // the old layouts: Home has one now
 		case "logo":
 			logoName = v
+		case "notes_list":
+			c.notesList = v
 		case "github":
 			c.github = v
 		case "recent":
