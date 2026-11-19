@@ -16,7 +16,7 @@ config folder, one look, instant switching between parts.
 | 6 | Switching | Top tab bar `Home │ Files │ Notes │ Git` (picked parts only), one key + click to switch. Removable if the user dislikes it |
 | 7 | Links between parts | Yes, after the merge works (batch 6), plus Notes **path mentions with suggestions** |
 | 8 | Old apps | No migration needed (only the user's 2 PCs). Remove old apps, install Dotes |
-| 9 | Old repos | All 4 Term repos are public today. Ask at the end: archive / make private (TermNotes follows the others) |
+| 9 | Old repos | Make all 4 old Term repos private once Dotes ships (batch 6) |
 | 10 | Install | `install.ps1` (and `install.sh`) that asks which parts you want |
 | 11 | Platforms | Windows, Mac, Linux (6 builds, like TermGit) |
 | 12 | Repo | New public repo `Tahaldr/Dotes` (name is free on the user's account) |
@@ -47,7 +47,7 @@ overlay.go, mdrender.go, update.go, config.go in every app) become one shared co
 
 One batch at a time; next only when the user says.
 
-1. **Shell + Files.** New repo, module `github.com/Tahaldr/dotes`. Shell with tab bar,
+1. ✅ **Shell + Files** (v0.1.0). New repo, module `github.com/Tahaldr/dotes`. Shell with tab bar,
    shared `internal/ui`, config folder + `dotes.txt`, first-run part picker / `dotes setup`.
    TermFiles moved in as the Files part (`dotes f`, `--pick`, `--cwd-file`, cd-on-quit
    shell function). Tests: first frame at every size for shell + Files.
@@ -67,7 +67,7 @@ One batch at a time; next only when the user says.
    (6 builds on a `v*` tag pushed alone), `dotes update`, README. Move the user's own
    settings (TermGit config.txt, TermFiles/TermNotes settings, TermNook config.psd1,
    logo, prayer.json) into `%APPDATA%\dotes\`. Swap TermNook in the PowerShell profile
-   for Dotes, remove the old apps (after the user approves). Ask about the old repos.
+   for Dotes, remove the old apps (after the user approves), make the old Term repos private.
 7. **Design pass.** With the user: one style and layout across all parts (headers,
    panels, lists, popups, hint bar). Muted onedark stays.
 
