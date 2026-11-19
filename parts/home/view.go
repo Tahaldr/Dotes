@@ -192,10 +192,8 @@ func (m *model) panelBox(p panel, w int, on bool, line int) []string {
 		if i < len(p.lines) {
 			l = p.lines[i]
 		}
-		if on && i == line && l != "" { // the picked line: a bright bar, the row lit across
-			hl := lipgloss.NewStyle().Background(t.selBg).Foreground(t.acc).Bold(true)
-			out = append(out, fg(t.acc).Render("▌")+hl.Render(" "+ui.Pad(ansi.Strip(l), inner-2)+" ")+b.Render("│"))
-			continue
+		if on && i != line && l != "" { // the picked line stays bright, the others fade
+			l = fg(t.mut).Render(ansi.Strip(l))
 		}
 		out = append(out, b.Render("│")+" "+ui.Pad(l, inner-2)+" "+b.Render("│"))
 	}

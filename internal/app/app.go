@@ -13,7 +13,7 @@ import (
 // programs Dotes starts (the project picker) are in the demo too.
 var Demo = os.Getenv("DOTES_DEMO") == "1"
 
-const Version = "0.9.3"
+const Version = "0.9.4"
 
 // Parts, in tab order. Key is the short command (dotes f) and the alt+N order.
 type PartInfo struct {
