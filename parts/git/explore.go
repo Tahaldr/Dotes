@@ -11,7 +11,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/cli/go-gh/v2/pkg/api"
 )
 
 const repoFields = `id nameWithOwner name description isPrivate isFork isArchived stargazerCount forkCount pushedAt url viewerHasStarred
@@ -53,7 +52,7 @@ type codeSearch struct {
 func fetchStarred() func() func(*model) {
 	return func() func(*model) {
 		rs := &repoSearch{}
-		c, err := api.DefaultGraphQLClient()
+		c, err := gqlClient()
 		if err == nil {
 			var r struct {
 				Viewer struct {
@@ -73,7 +72,7 @@ func fetchStarred() func() func(*model) {
 func fetchRepoSearch(q string) func() func(*model) {
 	return func() func(*model) {
 		rs := &repoSearch{}
-		c, err := api.DefaultGraphQLClient()
+		c, err := gqlClient()
 		if err == nil {
 			var r struct {
 				Search struct{ Nodes []Repo }
@@ -92,7 +91,7 @@ func fetchRepoSearch(q string) func() func(*model) {
 func fetchCodeSearch(q string) func() func(*model) {
 	return func() func(*model) {
 		cs := &codeSearch{}
-		c, err := api.DefaultRESTClient()
+		c, err := restClient()
 		if err == nil {
 			var r struct {
 				Items []codeHit `json:"items"`

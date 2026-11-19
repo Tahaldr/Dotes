@@ -8,7 +8,12 @@ import (
 	"strings"
 )
 
-const Version = "0.9.1"
+// Demo: dotes demo is running (made-up data for screenshots: its own settings folder, a
+// sample notebook and projects, a fake GitHub account). Set through DOTES_DEMO=1 so the
+// programs Dotes starts (the project picker) are in the demo too.
+var Demo = os.Getenv("DOTES_DEMO") == "1"
+
+const Version = "0.9.2"
 
 // Parts, in tab order. Key is the short command (dotes f) and the alt+N order.
 type PartInfo struct {

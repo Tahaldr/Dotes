@@ -1,105 +1,362 @@
+<div align="center">
+
 # Dotes
 
-One terminal app with the parts you pick. Every part has the same look, the same keys and
-one settings folder, and you switch between them in the same window.
+**One terminal app for your day: your apps, your files, your todos and your GitHub.**
+Pick the parts you want; they look the same, share their keys and link to each other.
 
-| Part | What it is | Status |
-|---|---|---|
-| **Home** | your apps as cards, and a glance at the other parts: what's due, repos to commit or push, failing CI, recent projects, prayer times | ready |
-| **Files** | a yazi-style file manager | ready |
-| **Notes** | todo lists and notes | ready |
-| **Git** | GitHub and Git: repos, changes, PRs, issues, CI | ready |
+[![release](https://img.shields.io/github/v/release/Tahaldr/Dotes?color=61afef&label=release)](https://github.com/Tahaldr/Dotes/releases/latest)
+[![tests](https://img.shields.io/github/actions/workflow/status/Tahaldr/Dotes/test.yml?label=tests&color=98c379)](https://github.com/Tahaldr/Dotes/actions/workflows/test.yml)
+![platforms](https://img.shields.io/badge/Windows%20·%20macOS%20·%20Linux-3e4451)
+[![license](https://img.shields.io/badge/license-MIT-c678dd)](LICENSE)
+
+![Dotes Home](docs/screenshots/home.png)
+
+[Install](#install) · [The parts](#the-parts) · [Keys](#keys) · [Settings](#settings) · [FAQ](#faq)
+
+</div>
+
+---
 
 ## Install
 
-Windows (PowerShell):
+**Windows** (PowerShell):
 
 ```powershell
 irm https://raw.githubusercontent.com/Tahaldr/Dotes/master/install.ps1 | iex
 ```
 
-macOS / Linux:
+**macOS / Linux:**
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Tahaldr/Dotes/master/install.sh | sh
 ```
 
-The installer asks which parts you want and offers to add the shell function to your profile.
-`dotes update` gets newer versions later. The Git part logs in through the
-[GitHub CLI](https://cli.github.com) (`dotes g login`).
+The installer puts `dotes` in `~/.local/bin`, asks **which parts you want**, and offers to add a
+small [shell function](#the-shell-function) to your profile. Then open a new terminal and type:
 
-The first time you run `dotes` it asks which parts you want. The others stay hidden; change
-your pick any time with `dotes setup`.
-
-## Use
-
-```
-dotes                 open your first part (Home)
-dotes h quick         one-line app picker under your prompt
-dotes h projects      pick a project and open it
-dotes h salat         today's prayer times
-dotes f [folder]      Files
-dotes n               Notes  (dotes n add "buy milk" -d fri, dotes n today, dotes n lists)
-dotes g [tab|repo|.]  Git    (dotes g login, dotes g doctor, dotes g FILE reads a file)
-dotes setup           pick your parts
-dotes config          open the settings (dotes.txt)
-dotes update          get the newest version
-dotes shell pwsh      the shell function for your profile (also bash, zsh)
+```sh
+dotes
 ```
 
-Inside, every part has the same first line: its name and tabs on the left, and
-`Home · Files · Notes · Git` on the right (click one, or `alt+1`–`alt+9`). `q` goes back to
-Home (a part you opened straight from the prompt, like `dotes f`, quits instead). `F1` shows
-every key of the part you're in.
+> **Just looking?** Run `dotes demo`: Dotes with a made-up notebook, projects and GitHub
+> account, in a temp folder. Nothing of yours is read or changed.
 
-Everything is live: a file saved in Nvim, a commit or pull from another terminal, a list
-changed in another window shows at once, without refreshing.
+<details>
+<summary><b>What you need</b> (click)</summary>
 
-The parts link to each other:
+| | Why | |
+|---|---|---|
+| A [Nerd Font](https://www.nerdfonts.com) in your terminal | the icons | needed |
+| [GitHub CLI](https://cli.github.com) (`gh`) | the Git part logs in with it (`dotes g login`) | for Git |
+| `git` | changes, commits, branches on your PC | for Git |
+| [fd](https://github.com/sharkdp/fd), [ripgrep](https://github.com/BurntSushi/ripgrep), [fzf](https://github.com/junegunn/fzf), [zoxide](https://github.com/ajeetdsouza/zoxide) | fast search and jumps in Files, recent projects on Home | nice to have |
+| [7-Zip](https://www.7-zip.org) | `.7z` / `.rar` in Files (zip works without it) | nice to have |
+| An editor (`nvim` by default) | opening files and notes | nice to have |
 
-- Files: `gi` opens the repo you're in, in Git; `gn` opens the project's note in Notes
-- Git: `ctrl+f` shows the repo folder (or the highlighted file) in Files
-- Notes: type `~/` or `C:\` in a todo and the folder's files pop up (`tab` puts one in);
-  paths on your PC show as links, and a click or `gf` opens them in Files
+Windows Terminal, WezTerm, Kitty, Ghostty and iTerm2 all work.
+</details>
+
+---
+
+## The parts
+
+Every part has the **same first line**: its name and tabs on the left, and
+`Home · Files · Notes · Git` on the right. Click a name or press `alt+1`…`alt+4` to switch;
+`q` takes you back to Home. Each part has its own color, so you always know where you are.
+
+<table>
+<tr><td width="50%">
+
+### 󰋜 Home
+Your apps as cards (up to 5 a row) and a **glance at everything else**:
+what's due in Notes, repos with work to commit or push, failing CI, your recent projects
+and the next prayer times.
+
+`←→` pick an app · `enter` open · `space` jump to the panels
+
+</td><td>
+
+![Home](docs/screenshots/home.png)
+
+</td></tr>
+<tr><td>
+
+### 󰉋 Files
+A [yazi](https://github.com/sxyazi/yazi)-style file manager: three columns, previews
+(code, Markdown, images, archives), tabs, bookmarks, fuzzy jumps, git marks, the
+Recycle Bin, bulk rename in your editor, and undo.
+
+`hjkl` move · `/` find · `z` jump · `space` select · `y` `x` `p` copy, cut, paste
+
+</td><td>
+
+![Files](docs/screenshots/files.png)
+
+</td></tr>
+<tr><td>
+
+### 󰠮 Notes
+Todo lists and notes, as plain Markdown files you own. Due dates, priorities, sub-todos,
+a **Today** tab, and **paths that become links**: type `~/` in a todo and pick a file.
+
+`o` new todo · `x` tick · `t` due date · `!` priority · `gf` open a path
+
+</td><td>
+
+![Notes](docs/screenshots/notes.png)
+
+</td></tr>
+<tr><td>
+
+###  Git
+GitHub and git in one place: your repos, **changes to stage line by line**, commits,
+branches, PRs with reviews, issues, CI runs and logs, notifications and a contribution graph.
+
+`space` stage · `c` commit · `P` push · `ctrl+p` every command
+
+</td><td>
+
+![Git](docs/screenshots/git.png)
+
+</td></tr>
+</table>
+
+### Live and linked
+
+- **Live:** save a file in Nvim, commit in another terminal, tick a todo in another window:
+  Dotes shows it at once. No refresh key.
+- **Linked:**
+
+  | From | Key | Goes to |
+  |---|---|---|
+  | Files | `gi` | this repo in **Git** |
+  | Files | `gn` | this project's note in **Notes** |
+  | Git | `ctrl+f` | the repo folder (or the highlighted file) in **Files** |
+  | Notes | `gf` / click | the path in the todo, in **Files** |
+  | Home | `space`, `enter` | a repo in **Git**, a project in **Files**, your todos in **Notes** |
+
+![Path suggestions in Notes](docs/screenshots/notes-paths.png)
+![Changes in Git](docs/screenshots/git-changes.png)
+
+---
+
+## Commands
+
+```text
+dotes                  Home (or your first part)
+dotes f [folder]       Files            dotes n             Notes
+dotes g [tab|repo|.]   Git              dotes h projects    pick a project and open it
+
+dotes n add "buy milk" -d fri -p high   add a todo from the prompt
+dotes n today                           what's late and due today
+dotes h salat                           today's prayer times
+dotes h quick                           a one-line app picker under your prompt
+
+dotes setup     pick your parts          dotes config    open the settings
+dotes update    get the newest version   dotes demo      try it with made-up data
+dotes --help    everything
+```
+
+---
+
+## Keys
+
+`F1` shows every key of the part you're in. The ones that work everywhere:
+
+| Key | Does |
+|---|---|
+| `alt+1` … `alt+4` | switch part (or click its name on the first line) |
+| `q` | back to Home (from a part you opened at the prompt, like `dotes f`: quit) |
+| `F1` | all keys of this part |
+| `j` `k` / arrows | move |
+| `/` | find |
+| `ctrl+p` | every command (Git) |
+
+<details>
+<summary><b>Home keys</b></summary>
+
+| Key | Does |
+|---|---|
+| `←→` `↑↓` / `tab` | pick an app |
+| `enter` / its letter | open it |
+| `space` (or `↓` past the last row) | to the panels; `tab` next panel, `↑↓` a line, `enter` open it |
+| `q` | back to the prompt |
+| `x` | close the terminal tab |
+</details>
+
+<details>
+<summary><b>Files keys</b> (the most used)</summary>
+
+| Key | Does |
+|---|---|
+| `h` `l` | parent folder / open |
+| `gg` `G` | top / bottom |
+| `z` / `Z` | jump with fzf / zoxide |
+| `b` / `'` | bookmark / bookmarks |
+| `f` `/` `s` `S` | filter, find, search names, search text |
+| `space` `v` | select, visual select |
+| `y` `x` `p` `d` | copy, cut, paste, trash (`u` undoes) |
+| `a` `r` | create, rename |
+| `tt` `1`-`9` | new tab, go to tab |
+| `gi` `gn` | open in Git, project note in Notes |
+</details>
+
+<details>
+<summary><b>Notes keys</b> (the most used)</summary>
+
+| Key | Does |
+|---|---|
+| `1` `2` `3` | Todo lists, Notes, Today |
+| `o` `O` `s` | new todo below, above, sub-todo |
+| `x` / `space` | tick |
+| `i` `a` | edit the text |
+| `t` `!` | due date, priority |
+| `dd` `yy` `p` | cut, copy, paste a todo |
+| `gf` | open the path in Files |
+</details>
+
+<details>
+<summary><b>Git keys</b> (the most used)</summary>
+
+| Key | Does |
+|---|---|
+| `1`-`7` | Home, Repos, Issues, PRs, Actions, Inbox, Explore |
+| `enter` | open the repo / item |
+| `[` `]` | sections in a repo: Code, Changes, Issues, PRs, Commits, Branches, Actions, Releases |
+| `space` `enter` | stage a file / pick its lines |
+| `c` `P` `p` | commit, push, pull |
+| `e` `L` | open in your editor / lazygit |
+| `ctrl+f` | the folder in Files |
+| `ctrl+p` | every command |
+</details>
+
+---
 
 ## Settings
 
-`%APPDATA%\dotes\` on Windows, `~/.config/dotes/` elsewhere:
+One folder: `%APPDATA%\dotes\` on Windows, `~/.config/dotes/` elsewhere
+(`dotes config` opens it). Every option is explained in its file, and updates never touch them.
 
-- `dotes.txt`: shared settings (your parts, key hints, the part names on the first line)
-- `files.txt`: Files settings (and `files-bookmarks.txt`)
-- `notes.txt`: Notes settings (your notebook folder, editor, inbox list)
-- `git.txt`: Git settings (start tab, where to clone, editor, git tool)
-- `home.txt`: Home settings (apps, logo, prayer times, project folders), e.g.
-  `prayer = Casablanca | Morocco | 21` for prayer times with a countdown
+| File | What's in it |
+|---|---|
+| `dotes.txt` | your parts, key hints on/off, the part names on the first line |
+| `home.txt` | your apps, the logo, prayer times, project folders, colors |
+| `files.txt` | Files: hidden files, sorting, openers, previews (`files-bookmarks.txt`: bookmarks) |
+| `notes.txt` | Notes: the notebook folder, editor, inbox list |
+| `git.txt` | Git: start tab, where to clone, folders with your repos, editor, git tool |
 
-Coming from TermNook, TermFiles, TermNotes or TermGit? Their settings and bookmarks are copied over the first time.
+<details>
+<summary><b>Add your own app to Home</b></summary>
 
-Every option is explained in the file itself. Updates never touch these files.
+In `home.txt`, one line per app: name, hint, key, icon ([Nerd Font](https://www.nerdfonts.com/cheat-sheet) code), command.
 
-## The shell function
+```ini
+app = Nvim    | editor  | n | f36f  | nvim .
+app = VS Code | code    | v | f0a1e | code .
+app = Shell   | prompt  | s |       |
+```
 
-Quitting Files opened with `dotes f` (or opening a project) can leave your shell in that folder, and `x`
-on Home closes the terminal tab. That needs a small function in your shell; the installer
-adds it, or add the line yourself:
+An empty command goes back to the prompt; `projects` opens the project picker.
+</details>
+
+<details>
+<summary><b>Prayer times</b></summary>
+
+```ini
+prayer = Casablanca | Morocco | 21
+```
+
+City, country and a [calculation method](https://aladhan.com/calculation-methods)
+(21 = Morocco). The month is downloaded once and kept, so Home never waits.
+</details>
+
+<details>
+<summary><b>Where your notes are</b></summary>
+
+Plain Markdown files in `~/Documents/Notebook` (change `notebook =` in `notes.txt`):
+
+```text
+Notebook/
+  todos/   one file per todo list
+  notes/   one file per note
+```
+
+Edit them anywhere; Dotes picks up the change at once.
+</details>
+
+### The shell function
+
+With it, quitting Files (opened with `dotes f`) leaves your shell in that folder, opening a
+project goes there, and `x` on Home closes the tab. The installer adds it, or add the line:
 
 ```powershell
-# $PROFILE  (--start also opens Home in every new tab)
+# PowerShell: $PROFILE   (--start also opens Home in every new tab)
 dotes.exe shell pwsh --start | Out-String | Invoke-Expression
 ```
 
 ```sh
-# ~/.bashrc or ~/.zshrc
+# bash / zsh: ~/.bashrc or ~/.zshrc
 eval "$(command dotes shell bash --start)"
 ```
 
-`dotes shell pwsh` prints the function, if you'd rather paste it.
+---
+
+## FAQ
+
+<details>
+<summary><b>Do I have to install every part?</b></summary>
+
+No. Pick them at install (or later with `dotes setup`); the others stay out of sight.
+</details>
+
+<details>
+<summary><b>How do I update?</b></summary>
+
+`dotes update`. The first line shows `⬆ new version` when there is one.
+</details>
+
+<details>
+<summary><b>The icons are boxes / question marks</b></summary>
+
+Your terminal needs a [Nerd Font](https://www.nerdfonts.com), e.g. CaskaydiaCove Nerd Font.
+</details>
+
+<details>
+<summary><b>Git says I'm not logged in</b></summary>
+
+Install the [GitHub CLI](https://cli.github.com), then run `dotes g login`. `dotes g doctor` checks the rest.
+</details>
+
+<details>
+<summary><b>Arabic text looks broken</b></summary>
+
+Dotes lays Arabic out itself (Windows Terminal can't); use a font with Arabic, e.g. a Nerd Font patched Cascadia.
+</details>
+
+---
 
 ## Build
 
-```
+```sh
 go test ./...
-go build -o dotes.exe .
+go build -o dotes .
 ```
+
+<details>
+<summary><b>Screenshots for this page</b></summary>
+
+`dotes demo` opens Dotes on made-up data. Window about 130 × 36. The pictures go in
+`docs/screenshots/`:
+
+| File | What to show |
+|---|---|
+| `home.png` | Home, an app picked, the panels |
+| `files.png` | Files in `shop-api`, `orders/refunds.go` previewed |
+| `notes.png` | Notes, the *Shop launch* list open |
+| `notes-paths.png` | typing `~/` in a todo, the suggestions open |
+| `git.png` | Git's Home (contributions, needs you, activity) |
+| `git-changes.png` | Git, *shop-api* › Changes, a diff |
+</details>
 
 MIT license.

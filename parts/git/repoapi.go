@@ -89,7 +89,7 @@ type treeData struct {
 func fetchTree(nwo, ref, oid string) func() func(*model) {
 	return func() func(*model) {
 		td := &treeData{children: map[string][]treeEntry{}}
-		c, err := api.DefaultRESTClient()
+		c, err := restClient()
 		if err == nil {
 			target := oid
 			if target == "" {
@@ -140,7 +140,7 @@ const maxFile = 1 << 20 // files bigger than 1 MB are only offered in the browse
 func fetchBlob(nwo, sha string) func() func(*model) {
 	return func() func(*model) {
 		b := &blobData{}
-		c, err := api.DefaultRESTClient()
+		c, err := restClient()
 		if err == nil {
 			var r struct {
 				Content string `json:"content"`
@@ -214,7 +214,7 @@ const commitsQuery = `query($owner: String!, $name: String!, $ref: String!) {
 func fetchCommits(nwo, ref string) func() func(*model) {
 	return func() func(*model) {
 		cl := &commitList{}
-		c, err := api.DefaultGraphQLClient()
+		c, err := gqlClient()
 		if err == nil {
 			owner, name := splitNwo(nwo)
 			var r struct {
@@ -258,7 +258,7 @@ type commitDetail struct {
 func fetchCommitDetail(nwo, oid string) func() func(*model) {
 	return func() func(*model) {
 		d := &commitDetail{}
-		c, err := api.DefaultRESTClient()
+		c, err := restClient()
 		if err == nil {
 			var r struct {
 				Files []commitFile `json:"files"`
@@ -304,7 +304,7 @@ const branchesQuery = `query($owner: String!, $name: String!, $base: String!) {
 func fetchBranches(nwo, base string) func() func(*model) {
 	return func() func(*model) {
 		bl := &branchList{}
-		c, err := api.DefaultGraphQLClient()
+		c, err := gqlClient()
 		if err == nil {
 			owner, name := splitNwo(nwo)
 			var r struct {

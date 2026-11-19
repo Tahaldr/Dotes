@@ -620,7 +620,7 @@ func (m *model) projects() []string {
 		}
 	}
 	h := home("")
-	if _, err := exec.LookPath("zoxide"); err == nil {
+	if _, err := exec.LookPath("zoxide"); err == nil && !app.Demo { // the demo shows only its own projects
 		if b, err := exec.Command("zoxide", "query", "--list").Output(); err == nil {
 			for _, p := range strings.Split(strings.ReplaceAll(string(b), "\r\n", "\n"), "\n") {
 				if len(p) > 3 && !strings.EqualFold(p, h) && isDir(p) {

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
-	"github.com/cli/go-gh/v2/pkg/api"
 )
 
 type contribDay struct {
@@ -35,7 +34,7 @@ const contribQuery = `query {
 func fetchContrib() func() func(*model) {
 	return func() func(*model) {
 		cd := &contribData{}
-		c, err := api.DefaultGraphQLClient()
+		c, err := gqlClient()
 		if err == nil {
 			var r struct {
 				Viewer struct {
@@ -100,7 +99,7 @@ type eventList struct {
 func fetchEvents(login string) func() func(*model) {
 	return func() func(*model) {
 		el := &eventList{}
-		c, err := api.DefaultRESTClient()
+		c, err := restClient()
 		if err == nil {
 			err = c.Get("users/"+login+"/events?per_page=40", &el.items)
 		}

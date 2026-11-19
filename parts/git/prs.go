@@ -15,7 +15,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/cli/go-gh/v2/pkg/api"
 )
 
 type PR struct {
@@ -166,7 +165,7 @@ const prSearch = `query($q: String!) {
 func fetchPRs(q string) func() func(*model) {
 	return func() func(*model) {
 		pl := &prList{}
-		c, err := api.DefaultGraphQLClient()
+		c, err := gqlClient()
 		if err == nil {
 			var r struct {
 				Search struct {
@@ -207,7 +206,7 @@ const prDetailQuery = `query($owner: String!, $name: String!, $n: Int!) {
 func fetchPRDetail(nwo string, n int) func() func(*model) {
 	return func() func(*model) {
 		d := &prDetail{}
-		c, err := api.DefaultGraphQLClient()
+		c, err := gqlClient()
 		if err == nil {
 			owner, name := splitNwo(nwo)
 			var r struct {
@@ -253,7 +252,7 @@ func fetchPRDetail(nwo string, n int) func() func(*model) {
 func fetchPRFiles(nwo string, n int) func() func(*model) {
 	return func() func(*model) {
 		f := &prFiles{}
-		c, err := api.DefaultRESTClient()
+		c, err := restClient()
 		if err == nil {
 			err = c.Get(fmt.Sprintf("repos/%s/pulls/%d/files?per_page=100", nwo, n), &f.files)
 		}
@@ -794,7 +793,7 @@ func (m *model) prReadFor(p *PR) tea.Cmd {
 				id, _ := strconv.ParseInt(runIDRe.FindStringSubmatch(pick.DetailsURL)[1], 10, 64)
 				nwo := p.repo()
 				return tea.Batch(m.setStatus("Opening the logs of "+pick.title()+"…", false), func() tea.Msg {
-					c, err := api.DefaultRESTClient()
+					c, err := restClient()
 					var r Run
 					if err == nil {
 						err = c.Get(fmt.Sprintf("repos/%s/actions/runs/%d", nwo, id), &r)

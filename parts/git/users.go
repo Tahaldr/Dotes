@@ -9,7 +9,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/cli/go-gh/v2/pkg/api"
 )
 
 type userHit struct {
@@ -60,7 +59,7 @@ func (p *Profile) isOrg() bool { return p.Typename == "Organization" }
 func fetchUserSearch(q string) func() func(*model) {
 	return func() func(*model) {
 		us := &userSearch{}
-		c, err := api.DefaultGraphQLClient()
+		c, err := gqlClient()
 		if err == nil {
 			var r struct {
 				Search struct{ Nodes []userHit }
@@ -86,7 +85,7 @@ func fetchUserSearch(q string) func() func(*model) {
 func fetchProfile(login string) func() func(*model) {
 	return func() func(*model) {
 		p := &Profile{Login: login}
-		c, err := api.DefaultGraphQLClient()
+		c, err := gqlClient()
 		if err == nil {
 			var r struct {
 				RepositoryOwner *Profile `json:"repositoryOwner"`
@@ -135,7 +134,7 @@ func (m *model) actFollow(p *Profile) tea.Cmd {
 		return m.setStatus(fmt.Sprintf("Would follow=%v %s", follow, login), false)
 	}
 	return func() tea.Msg {
-		c, err := api.DefaultRESTClient()
+		c, err := restClient()
 		if err == nil {
 			if follow {
 				err = c.Put("user/following/"+login, nil, nil)
@@ -154,7 +153,7 @@ func (m *model) onFollow(msg followMsg) tea.Cmd {
 			login, follow := msg.login, msg.follow
 			return m.askScope("user:follow", "follow people", func(m *model) tea.Cmd {
 				return func() tea.Msg {
-					c, err := api.DefaultRESTClient()
+					c, err := restClient()
 					if err == nil {
 						if follow {
 							err = c.Put("user/following/"+login, nil, nil)

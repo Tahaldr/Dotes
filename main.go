@@ -24,7 +24,7 @@ import (
 
 var usage = `Dotes ` + app.Version + ` - one terminal app with the parts you pick
 
-  dotes                             open your first part (alt+1-9 or a click on the top bar switches)
+  dotes                             open your first part (alt+1-9 or a click on the part names switches)
 ` + home.Usage + `
 ` + files.Usage + `
 ` + notes.Usage + `
@@ -32,10 +32,11 @@ var usage = `Dotes ` + app.Version + ` - one terminal app with the parts you pic
   dotes setup                       pick the parts you want (the others stay hidden)
   dotes config                      open the settings folder's dotes.txt in your editor
   dotes update [--check]            get the newest version
+  dotes demo                        try Dotes with made-up data (a sample notebook, projects, GitHub account)
   dotes shell pwsh|bash [--start]   the shell function for your profile (cd on quit; --start: Home in new tabs)
   dotes --version
 
-Every part: ~ shows its keys. Settings: ` + app.Dir()
+Every part: F1 shows its keys. Settings: ` + app.Dir()
 
 func main() {
 	args := os.Args[1:]
@@ -76,6 +77,12 @@ func main() {
 		return
 	case "setup":
 		o.Setup = true
+	case "demo": // made-up data for screenshots, in a temp folder
+		os.Chdir(setupDemo())
+		if len(args) > 1 && args[0] == "--dump" { // dotes demo --dump WxH part keys...
+			dump(args[1:])
+			return
+		}
 	case "shell", "init":
 		shellInit(args)
 		return

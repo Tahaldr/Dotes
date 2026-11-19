@@ -15,7 +15,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/cli/go-gh/v2/pkg/api"
 )
 
 type Label struct {
@@ -102,7 +101,7 @@ const issueSearch = `query($q: String!) {
 func fetchIssues(q string) func() func(*model) {
 	return func() func(*model) {
 		il := &issueList{}
-		c, err := api.DefaultGraphQLClient()
+		c, err := gqlClient()
 		if err == nil {
 			var r struct {
 				Search struct {
@@ -133,7 +132,7 @@ const commentsQuery = `query($owner: String!, $name: String!, $n: Int!) {
 func fetchComments(nwo string, n int) func() func(*model) {
 	return func() func(*model) {
 		cl := &commentList{}
-		c, err := api.DefaultGraphQLClient()
+		c, err := gqlClient()
 		if err == nil {
 			owner, name := splitNwo(nwo)
 			var r struct {
@@ -580,7 +579,7 @@ func (m *model) issLabels() tea.Cmd {
 	}
 	return func() tea.Msg {
 		var all []Label
-		c, err := api.DefaultRESTClient()
+		c, err := restClient()
 		if err == nil {
 			err = c.Get("repos/"+nwo+"/labels?per_page=100", &all)
 		}

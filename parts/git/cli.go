@@ -200,6 +200,9 @@ func haveGh() bool {
 }
 
 func loggedIn() bool {
+	if app.Demo {
+		return true
+	}
 	tok, _ := auth.TokenForHost("github.com")
 	return tok != ""
 }

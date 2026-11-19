@@ -22,7 +22,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/cli/go-gh/v2/pkg/api"
 )
 
 // ---- data ----
@@ -139,7 +138,7 @@ type releaseList struct {
 func fetchRuns(nwo string) func() func(*model) {
 	return func() func(*model) {
 		rl := &runList{}
-		c, err := api.DefaultRESTClient()
+		c, err := restClient()
 		if err == nil {
 			var r struct {
 				Runs []Run `json:"workflow_runs"`
@@ -164,7 +163,7 @@ func fetchRuns(nwo string) func() func(*model) {
 func fetchJobs(nwo string, id int64) func() func(*model) {
 	return func() func(*model) {
 		jl := &jobList{}
-		c, err := api.DefaultRESTClient()
+		c, err := restClient()
 		if err == nil {
 			var r struct {
 				Jobs []Job `json:"jobs"`
@@ -184,7 +183,7 @@ func fetchJobs(nwo string, id int64) func() func(*model) {
 func fetchReleases(nwo string) func() func(*model) {
 	return func() func(*model) {
 		rl := &releaseList{}
-		c, err := api.DefaultRESTClient()
+		c, err := restClient()
 		if err == nil {
 			err = c.Get("repos/"+nwo+"/releases?per_page=30", &rl.items)
 			for i := range rl.items {
@@ -573,7 +572,7 @@ type ciDoneMsg struct {
 }
 
 func post(path string, body any) error {
-	c, err := api.DefaultRESTClient()
+	c, err := restClient()
 	if err != nil {
 		return err
 	}
@@ -647,7 +646,7 @@ func (m *model) actWorkflows() tea.Cmd {
 		}
 	}
 	return tea.Batch(m.setStatus("Looking up workflows…", false), func() tea.Msg {
-		c, err := api.DefaultRESTClient()
+		c, err := restClient()
 		var r struct {
 			Workflows []Workflow `json:"workflows"`
 		}
@@ -739,7 +738,7 @@ func (m *model) fetchLogs(r *Run) tea.Cmd {
 	}
 	nwo, id := r.Repo, r.ID
 	return func() tea.Msg {
-		c, err := api.DefaultRESTClient()
+		c, err := restClient()
 		if err != nil {
 			return logsMsg{key, nil, err}
 		}

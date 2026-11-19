@@ -10,7 +10,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/cli/go-gh/v2/pkg/api"
 )
 
 const (
@@ -314,7 +313,7 @@ func (m *model) previewInner() int {
 }
 
 func gql(q string, vars map[string]interface{}) error {
-	c, err := api.DefaultGraphQLClient()
+	c, err := gqlClient()
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/Tahaldr/dotes/internal/app"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -93,7 +94,7 @@ const reposQuery = `query($after: String) {
 
 func fetchRepos() tea.Cmd {
 	return func() tea.Msg {
-		c, err := api.DefaultGraphQLClient()
+		c, err := gqlClient()
 		if err != nil {
 			return reposMsg{err: err}
 		}
@@ -131,7 +132,7 @@ func fetchRepos() tea.Cmd {
 
 func fetchReadme(nwo string) tea.Cmd {
 	return func() tea.Msg {
-		c, err := api.DefaultRESTClient()
+		c, err := restClient()
 		if err != nil {
 			return readmeMsg{nwo: nwo, err: err}
 		}
@@ -169,6 +170,9 @@ func cacheDir() string {
 	d, err := os.UserCacheDir()
 	if err != nil {
 		d = os.TempDir()
+	}
+	if app.Demo { // the demo keeps its made-up data away from yours
+		d = app.Dir()
 	}
 	d = filepath.Join(d, "dotes", "git")
 	os.MkdirAll(filepath.Join(d, "readme"), 0o755)

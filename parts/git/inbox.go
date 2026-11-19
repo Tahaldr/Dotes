@@ -12,7 +12,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/cli/go-gh/v2/pkg/api"
 )
 
 type Notif struct {
@@ -75,7 +74,7 @@ type notifList struct {
 func fetchNotifs(all bool) func() func(*model) {
 	return func() func(*model) {
 		nl := &notifList{}
-		c, err := api.DefaultRESTClient()
+		c, err := restClient()
 		if err == nil {
 			err = c.Get(fmt.Sprintf("notifications?all=%v&per_page=50", all), &nl.items)
 		}
@@ -180,7 +179,7 @@ type subject struct {
 func fetchSubject(nwo string, num int) func() func(*model) {
 	return func() func(*model) {
 		s := &subject{}
-		c, err := api.DefaultGraphQLClient()
+		c, err := gqlClient()
 		if err == nil {
 			o, n := splitNwo(nwo)
 			var r struct {
@@ -212,7 +211,7 @@ func (m *model) loadSubject(n *Notif, debounce bool) tea.Cmd {
 }
 
 func markRead(id string) error {
-	c, err := api.DefaultRESTClient()
+	c, err := restClient()
 	if err != nil {
 		return err
 	}
@@ -304,7 +303,7 @@ func (m *model) inboxKey(s string) tea.Cmd {
 	case "M":
 		m.prompt = &prompt{label: "Mark every notification as read?", confirm: true, done: func(m *model, _ string) tea.Cmd {
 			return m.inboxDo("All marked as read", func() error {
-				c, err := api.DefaultRESTClient()
+				c, err := restClient()
 				if err != nil {
 					return err
 				}
@@ -316,7 +315,7 @@ func (m *model) inboxKey(s string) tea.Cmd {
 			id := n.ID
 			m.prompt = &prompt{label: "Stop notifications for \"" + n.Subject.Title + "\"?", confirm: true, done: func(m *model, _ string) tea.Cmd {
 				return m.inboxDo("Unsubscribed", func() error {
-					c, err := api.DefaultRESTClient()
+					c, err := restClient()
 					if err != nil {
 						return err
 					}
