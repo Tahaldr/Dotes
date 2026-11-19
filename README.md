@@ -31,6 +31,9 @@ dotes update          get the newest version
 Inside: `alt+1`–`alt+9` (or a click on the top bar) switches parts, `~` shows every key of
 the part you're in.
 
+Everything is live: a file saved in Nvim, a commit or pull from another terminal, a list
+changed in another window shows at once, without refreshing.
+
 The parts link to each other:
 
 - Files: `gi` opens the repo you're in, in Git; `gn` opens the project's note in Notes

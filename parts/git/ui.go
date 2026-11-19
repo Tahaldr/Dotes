@@ -3,6 +3,7 @@ package git
 import (
 	"fmt"
 	dotesapp "github.com/Tahaldr/dotes/internal/app"
+	fswatch "github.com/Tahaldr/dotes/internal/watch"
 	"io"
 	"os"
 	"os/exec"
@@ -186,6 +187,16 @@ type model struct {
 	palBack  *prompt   // the step before the picker (esc goes back to it)
 	palTitle string
 
+	// live (batch 6): repos on this PC are watched
+	fsw       *fswatch.Watcher
+	liveKey   string
+	liveLater bool
+	liveTree  struct {
+		root string
+		at   time.Time
+		dirs []string
+	}
+
 	// reader (batch 3): full screen; solo = started as `dotes g file.md`
 	rd   *reader
 	solo bool
@@ -246,6 +257,11 @@ func (m *model) Init() tea.Cmd {
 	cmds := []tea.Cmd{fetchRepos(), m.onSelect(), m.scanLocalInfo(), m.load("notifs:false", false, fetchNotifs(false))}
 	if !m.dump {
 		cmds = append(cmds, m.checkUpdate())
+		os.Setenv("GIT_OPTIONAL_LOCKS", "0") // git status mustn't rewrite .git/index (the watcher would see it)
+		if m.fsw = fswatch.New("git"); m.fsw != nil {
+			m.fsw.Skip(skipLive)
+			cmds = append(cmds, m.fsw.Next())
+		}
 	}
 	switch m.tab {
 	case tabHome:
@@ -426,7 +442,14 @@ func (m *model) ensureVisible() {
 // ---------------------------------------------------------------------------
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if w, ok := msg.(fswatch.Msg); ok {
+		if w.Key != "git" {
+			return m, nil
+		}
+		return m, m.onDiskChange(w)
+	}
 	mm, cmd := m.update(msg)
+	m.liveSync()
 	// a spinner turns while anything is loading
 	if !m.spinning && !m.dump && m.busy() {
 		m.spinning = true
@@ -548,6 +571,9 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.linfo = msg
 	case liveTick:
 		m.liveN++
+		if m.liveLater && m.prompt == nil && !m.palette {
+			return m, tea.Batch(m.liveRefresh(nil), m.onLive())
+		}
 		if m.liveN%max(1, cfg.notify/5) == 0 { // notifications: every minute (settings: notify_every)
 			delete(m.loaded, "notifs:false")
 			if m.tab == tabInbox {

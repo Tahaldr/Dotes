@@ -2,6 +2,7 @@ package notes
 
 import (
 	"github.com/Tahaldr/dotes/internal/app"
+	"github.com/Tahaldr/dotes/internal/watch"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -81,8 +82,9 @@ type model struct {
 	pageX        int        // where the open list's page starts
 	editY, editX int        // where the todo being typed is on screen (-1 = not shown)
 	links        []linkZone // paths on screen (a click opens them in Files)
-	rightRows    []int      // doc line per body row (-1 = none, -2 = the way back)
-	boxX         []int      // where the checkbox is on that row
+	watch        *watch.Watcher
+	rightRows    []int // doc line per body row (-1 = none, -2 = the way back)
+	boxX         []int // where the checkbox is on that row
 	lastClick    time.Time
 	lastY        int
 	cardCache    map[string]*cardData
@@ -99,13 +101,40 @@ func newModel() *model {
 	return m
 }
 
-func (m *model) Init() tea.Cmd { return m.tick() }
+func (m *model) Init() tea.Cmd {
+	if m.dump {
+		return nil
+	}
+	m.watch = watch.New("notes") // a list saved in Nvim or another window shows at once
+	m.watch.Set(kindDir("todos"), kindDir("notes"))
+	return tea.Batch(m.tick(), m.watch.Next())
+}
 
 func (m *model) tick() tea.Cmd {
 	if m.dump {
 		return nil
 	}
-	return tea.Tick(2*time.Second, func(time.Time) tea.Msg { return tickMsg{} })
+	every := 2 * time.Second
+	if m.watch.Watching() > 0 { // changes come from the watcher; the timer is a fallback
+		every = 10 * time.Second
+	}
+	return tea.Tick(every, func(time.Time) tea.Msg { return tickMsg{} })
+}
+
+// checkDisk picks up lists and notes changed outside (not while you're typing or picking)
+func (m *model) checkDisk() {
+	if m.edit != nil || m.prompt != nil || m.finder != nil || m.menu != nil {
+		return
+	}
+	if m.refresh() && m.doc == nil {
+		m.loadCurrent()
+	}
+	m.buildAgenda()
+	if m.doc != nil {
+		if fi, err := os.Stat(m.doc.path); err == nil && !fi.ModTime().Equal(m.doc.mod) {
+			m.reloadDoc()
+		}
+	}
 }
 
 func (m *model) setNote(s string, isErr bool) { m.note, m.noteErr = s, isErr }
@@ -567,18 +596,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case app.OpenMsg: // Files' gn: this folder's note
 		m.openProject(msg.Path)
 	case tickMsg:
-		if m.edit == nil && m.prompt == nil && m.finder == nil && m.menu == nil {
-			if m.refresh() && m.doc == nil {
-				m.loadCurrent()
-			}
-			m.buildAgenda()
-			if m.doc != nil {
-				if fi, err := os.Stat(m.doc.path); err == nil && !fi.ModTime().Equal(m.doc.mod) {
-					m.reloadDoc()
-				}
-			}
-		}
+		m.checkDisk()
 		return m, m.tick()
+	case watch.Msg:
+		if msg.Key != "notes" {
+			return m, nil
+		}
+		m.checkDisk()
+		return m, m.watch.Next()
 	case editorDoneMsg:
 		if msg.err != nil {
 			m.setNote("editor: "+msg.err.Error(), true)

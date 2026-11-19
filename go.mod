@@ -10,6 +10,7 @@ require (
 	github.com/charmbracelet/ultraviolet v0.0.0-20260811164956-006e29f97886
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/cli/go-gh/v2 v2.17.0
+	github.com/fsnotify/fsnotify v1.8.0
 	github.com/yuin/goldmark v1.8.5
 	golang.org/x/image v0.48.0
 	golang.org/x/sys v0.50.0

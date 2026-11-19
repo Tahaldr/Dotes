@@ -6,6 +6,7 @@ package git
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -290,5 +291,33 @@ func TestOpenImageFromReposList(t *testing.T) {
 	m.openImage("docs/shot.png", &reader{nwo: "a/b"})
 	if want := "Would open https://github.com/a/b/blob/HEAD/docs/shot.png"; m.status != want {
 		t.Errorf("full-screen README: got %q, want %q", m.status, want)
+	}
+}
+
+// the open repo's folders git cares about get watched; .gitignored ones and git's scratch files don't
+func TestLiveDirs(t *testing.T) {
+	root := t.TempDir()
+	if err := exec.Command("git", "-C", root, "init", "-q").Run(); err != nil {
+		t.Skip("no git")
+	}
+	for _, d := range []string{"src/ui", "node_modules/x", "docs"} {
+		os.MkdirAll(filepath.Join(root, filepath.FromSlash(d)), 0o755)
+		os.WriteFile(filepath.Join(root, filepath.FromSlash(d), "f.txt"), []byte("x"), 0o644)
+	}
+	os.WriteFile(filepath.Join(root, ".gitignore"), []byte("node_modules/\n"), 0o644)
+	m := newModel()
+	got := strings.Join(m.treeDirs(root), "|")
+	for _, want := range []string{filepath.Join(root, "src"), filepath.Join(root, "src", "ui"), filepath.Join(root, "docs")} {
+		if !strings.Contains(got, want) {
+			t.Errorf("%s not watched: %s", want, got)
+		}
+	}
+	if strings.Contains(got, "node_modules") {
+		t.Errorf("ignored folder watched: %s", got)
+	}
+	for p, skip := range map[string]bool{`x\.git\index.lock`: true, `x\.git\index`: false, `x\a.go`: false, `x\a.go~`: true} {
+		if skipLive(filepath.FromSlash(strings.ReplaceAll(p, `\`, "/"))) != skip {
+			t.Errorf("skipLive(%s) should be %v", p, skip)
+		}
 	}
 }

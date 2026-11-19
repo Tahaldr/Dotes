@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	tea "charm.land/bubbletea/v2"
 )
 
 const sample = `# Groceries
@@ -335,5 +337,31 @@ func TestBoardAndPages(t *testing.T) {
 	}
 	if out = runDump(120, 30, []string{"l", "enter"}); !strings.Contains(out, "New todo list") || !strings.Contains(out, "a title") {
 		t.Fatal("the + card should ask for a new list:\n" + out)
+	}
+}
+
+// a list saved in another window shows without a key press
+func TestLiveReload(t *testing.T) {
+	p := notebook(t, sample)
+	m := newModel()
+	m.Init()
+	if m.watch == nil {
+		t.Skip("no watching here")
+	}
+	defer m.watch.Close()
+	m.Update(tea.WindowSizeMsg{Width: 110, Height: 30})
+	m.openCurrent()
+	got := make(chan tea.Msg, 1)
+	go func() { got <- m.watch.Next()() }()
+	time.Sleep(50 * time.Millisecond)
+	os.WriteFile(p, []byte(sample+"- [ ] butter from nvim\n"), 0o644)
+	select {
+	case msg := <-got:
+		m.Update(msg)
+	case <-time.After(3 * time.Second):
+		t.Fatal("the change wasn't seen")
+	}
+	if v := m.View().Content; !strings.Contains(v, "butter from nvim") {
+		t.Fatalf("not reloaded:\n%s", v)
 	}
 }

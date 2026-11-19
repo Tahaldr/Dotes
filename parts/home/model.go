@@ -2,6 +2,7 @@ package home
 
 import (
 	"fmt"
+	"github.com/Tahaldr/dotes/internal/watch"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,6 +44,7 @@ type model struct {
 	cwdFile     string
 	dump, live  bool
 	zones       []zone
+	watch       *watch.Watcher // the settings folder: home.txt edited in Nvim shows at once
 }
 
 type tickMsg struct{}
@@ -73,8 +75,30 @@ func newModel() *model {
 	return m
 }
 
+// reloadSettings: home.txt, the logo, recent apps, the style or the hints changed outside
+func (m *model) reloadSettings() {
+	old := m.cfg.prayer
+	m.cfg = loadConfig()
+	m.hintsOn = app.LoadShared().Hints
+	m.style = m.cfg.style
+	if b, err := os.ReadFile(app.File("home-style.txt")); err == nil && styleNames[strings.TrimSpace(string(b))] != "" {
+		m.style = strings.TrimSpace(string(b))
+	}
+	m.orderApps()
+	m.sel = max(0, min(m.sel, len(m.apps)-1))
+	if p := m.cfg.prayer; p != nil && (old == nil || prayerKey(p, m.now) != prayerKey(old, m.now)) {
+		m.prayer = loadPrayer(p, m.now)
+		m.prayerRetry = time.Time{} // another city: get its times on the next tick
+	}
+}
+
 func (m *model) Init() tea.Cmd {
 	cmds := []tea.Cmd{m.tick()}
+	if !m.dump {
+		m.watch = watch.New("home")
+		m.watch.Set(app.Dir())
+		cmds = append(cmds, m.watch.Next())
+	}
 	if m.cfg.prayer != nil && m.prayer == nil && !m.dump {
 		cmds = append(cmds, fetchPrayer(m.cfg.prayer))
 	}
@@ -140,6 +164,17 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd = fetchPrayer(m.cfg.prayer)
 		}
 		return m, tea.Batch(m.tick(), cmd)
+	case watch.Msg:
+		if msg.Key != "home" {
+			return m, nil
+		}
+		for _, p := range msg.Paths {
+			if b := strings.ToLower(filepath.Base(p)); strings.HasPrefix(b, "home") && b != "home-prayer.json" || b == "dotes.txt" {
+				m.reloadSettings()
+				break
+			}
+		}
+		return m, m.watch.Next()
 	case prayerMsg:
 		if msg.data != nil {
 			m.prayer = msg.data

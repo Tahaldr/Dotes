@@ -63,7 +63,7 @@ One batch at a time; next only when the user says.
    - Git → open the repo folder in Files.
    - Notes: type a file path in a todo/note, get suggestions (popup like the Nvim
      cmdline), the path shows as a link; enter opens it in Files (or nvim).
-6. **Live updates everywhere.** Every part shows changes the moment they happen, without
+6. ✅ **Live updates everywhere** (v0.6.0: internal/watch on fsnotify; Files watches its folder, Notes its notebook, Home the settings folder, Git the open repo folder by folder + .git and every local repo for badges; timers stay as a slow fallback). Every part shows changes the moment they happen, without
    pressing refresh: Git reacts to every change live (files edited, staged, committed, pulled,
    branches, also from another program or terminal); Files sees new / changed / deleted files;
    Notes reloads a list or note changed in Nvim or another window; Home refreshes projects,

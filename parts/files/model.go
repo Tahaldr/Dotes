@@ -1,6 +1,7 @@
 package files
 
 import (
+	"github.com/Tahaldr/dotes/internal/watch"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -94,9 +95,11 @@ type model struct {
 	gfxForced           bool // images = blocks in config.txt
 
 	// batch 5
-	pick   pickArgs   // --pick: chosen from TermNook's nook -p
-	hidden bool       // another Dotes part is on screen
-	menu   *menuState // open-with menu
+	pick    pickArgs       // --pick: chosen from TermNook's nook -p
+	hidden  bool           // another Dotes part is on screen
+	watch   *watch.Watcher // tells us when the folder changes (another window, an editor...)
+	watched string
+	menu    *menuState // open-with menu
 
 	// filled by View, used by the mouse
 	colX  [3][2]int // x start / end of parent, current, preview columns
@@ -105,7 +108,7 @@ type model struct {
 }
 
 type previewMsg struct{ p preview }
-type tickMsg struct{}
+type tickMsg struct{ fromWatch bool }
 type editorDoneMsg struct{ err error }
 
 func newModel(start string) *model {
@@ -136,14 +139,31 @@ func newModel(start string) *model {
 }
 
 func (m *model) Init() tea.Cmd {
-	return tea.Batch(m.previewCmd(), m.tick(), m.gitRefresh(), m.detectGfx())
+	var w tea.Cmd
+	if !m.dump {
+		m.watch = watch.New("files")
+		w = m.watch.Next()
+	}
+	return tea.Batch(m.previewCmd(), m.tick(), m.gitRefresh(), m.detectGfx(), w)
+}
+
+// watchSync watches the folder on screen
+func (m *model) watchSync() {
+	if m.watch != nil && m.cwd != m.watched && m.virtual == "" {
+		m.watched = m.cwd
+		m.watch.Set(m.cwd)
+	}
 }
 
 func (m *model) tick() tea.Cmd {
 	if m.dump {
 		return nil
 	}
-	return tea.Tick(1500*time.Millisecond, func(time.Time) tea.Msg { return tickMsg{} })
+	every := 1500 * time.Millisecond
+	if m.watch.Watching() > 0 { // the watcher sees changes at once: the timer is just a fallback
+		every = 5 * time.Second
+	}
+	return tea.Tick(every, func(time.Time) tea.Msg { return tickMsg{} })
 }
 
 // ---------------------------------------------------------------------------
@@ -357,6 +377,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.gfxMsg(msg) {
 		return m, m.imgSyncLater()
 	}
+	if w, ok := msg.(watch.Msg); ok {
+		if w.Key != "files" {
+			return m, nil
+		}
+		m.gitStale = true
+		mm, cmd := m.update(tickMsg{fromWatch: true})
+		return mm, tea.Batch(cmd, m.watch.Next(), m.gitRefresh(), m.imgSyncLater())
+	}
 	if o, ok := msg.(app.OpenMsg); ok { // another part sent us somewhere
 		m.jumpTo(o.Path)
 		return m, m.imgSyncLater()
@@ -373,6 +401,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.imgShown = imgSpot{} // the whole screen gets drawn again
 	}
 	mm, cmd := m.update(msg)
+	m.watchSync()
 	cmd = tea.Batch(cmd, m.imgSyncLater())
 	if g := m.gitRefresh(); g != nil {
 		cmd = tea.Batch(cmd, g)
@@ -395,14 +424,18 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tickMsg:
+		next := m.tick()
+		if msg.fromWatch { // the watcher's own wait goes on; no second timer
+			next = nil
+		}
 		if m.virtual != "" || m.sortBy == "random" {
-			return m, m.tick()
+			return m, next
 		}
 		if list, n, err := m.readShaped(m.cwd, m.filter); err == nil && (!sameList(list, m.entries) || n != m.hiddenN) {
 			m.reload()
-			return m, tea.Batch(m.previewCmd(), m.tick())
+			return m, tea.Batch(m.previewCmd(), next)
 		}
-		return m, m.tick()
+		return m, next
 	case editorDoneMsg:
 		if msg.err != nil {
 			m.setNote("editor: "+msg.err.Error(), true)
