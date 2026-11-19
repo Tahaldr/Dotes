@@ -16,7 +16,7 @@ config folder, one look, instant switching between parts.
 | 6 | Switching | Top tab bar `Home │ Files │ Notes │ Git` (picked parts only), one key + click to switch. Removable if the user dislikes it |
 | 7 | Links between parts | Yes, after the merge works (batch 5), plus Notes **path mentions with suggestions** |
 | 8 | Old apps | No migration needed (only the user's 2 PCs). Remove old apps, install Dotes |
-| 9 | Old repos | Make all 4 old Term repos private once Dotes ships (batch 6) |
+| 9 | Old repos | Make all 4 old Term repos private once Dotes ships (batch 7) |
 | 10 | Install | `install.ps1` (and `install.sh`) that asks which parts you want |
 | 11 | Platforms | Windows, Mac, Linux (6 builds, like TermGit) |
 | 12 | Repo | New public repo `Tahaldr/Dotes` (name is free on the user's account) |
@@ -63,16 +63,23 @@ One batch at a time; next only when the user says.
    - Git → open the repo folder in Files.
    - Notes: type a file path in a todo/note, get suggestions (popup like the Nvim
      cmdline), the path shows as a link; enter opens it in Files (or nvim).
-6. **Ship.** `install.ps1` / `install.sh` with the part picker, release workflow
+6. **Live updates everywhere.** Every part shows changes the moment they happen, without
+   pressing refresh: Git reacts to every change live (files edited, staged, committed, pulled,
+   branches, also from another program or terminal); Files sees new / changed / deleted files;
+   Notes reloads a list or note changed in Nvim or another window; Home refreshes projects,
+   recent items and prayer times. Use file watching (fsnotify-style) where possible,
+   light polling where not, and keep CPU low.
+7. **Ship.** `install.ps1` / `install.sh` with the part picker, release workflow
    (6 builds on a `v*` tag pushed alone), `dotes update`, README. Move the user's own
    settings (TermGit config.txt, TermFiles/TermNotes settings, TermNook config.psd1,
    logo, prayer.json) into `%APPDATA%\dotes\`. Swap TermNook in the PowerShell profile
    for Dotes, remove the old apps (after the user approves), make the old Term repos private.
-7. **Design pass (one big batch at the end).** With the user: every part uses the same
+8. **Design pass (one big batch at the end).** With the user: every part uses the same
    approach and layout for every element. The user doesn't like how the Dotes top bar looks
    and feels stacked above each part's own tabs (Files tabs, Notes Todo lists/Notes/Today,
    Git tabs): redo the top bar and all in-part tabs as ONE tab system, then headers, panels,
    lists, popups, status lines and the hint bar. Muted onedark stays.
+   F1 opens the keys / shortcuts page in every part (next to the ~ and ? keys), same page layout everywhere.
 
 **After Dotes:** the private PC-config backup project (was "TermDots"), built for
 Dotes' final config layout.
