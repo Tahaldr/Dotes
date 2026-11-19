@@ -27,6 +27,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/Tahaldr/dotes/internal/rtl"
 	"github.com/Tahaldr/dotes/internal/ui"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func fg(c color.Color) lipgloss.Style { return ui.FG(c) }
@@ -191,11 +192,12 @@ func (m *model) panelBox(p panel, w int, on bool, line int) []string {
 		if i < len(p.lines) {
 			l = p.lines[i]
 		}
-		left := b.Render("│")
-		if on && i == line {
-			left = fg(t.acc).Render("┃")
+		if on && i == line && l != "" { // the picked line: a bright bar, the row lit across
+			hl := lipgloss.NewStyle().Background(t.selBg).Foreground(t.acc).Bold(true)
+			out = append(out, fg(t.acc).Render("▌")+hl.Render(" "+ui.Pad(ansi.Strip(l), inner-2)+" ")+b.Render("│"))
+			continue
 		}
-		out = append(out, left+" "+ui.Pad(l, inner-2)+" "+b.Render("│"))
+		out = append(out, b.Render("│")+" "+ui.Pad(l, inner-2)+" "+b.Render("│"))
 	}
 	return append(out, b.Render("╰"+strings.Repeat("─", inner)+"╯"))
 }

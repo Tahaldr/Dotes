@@ -316,17 +316,19 @@ func (m *model) panelKey(s string) tea.Cmd {
 	m.psel = min(m.psel, n-1)
 	p := m.shown[m.psel]
 	switch s {
-	case "tab", "right":
-		m.psel, m.pline = (m.psel+1)%n, -1
+	case "tab", "right": // the next panel, on its first line
+		m.psel = (m.psel + 1) % n
+		m.pline = min(0, len(m.shown[m.psel].lines)-1)
 	case "shift+tab", "left":
-		m.psel, m.pline = (m.psel+n-1)%n, -1
+		m.psel = (m.psel + n - 1) % n
+		m.pline = min(0, len(m.shown[m.psel].lines)-1)
 	case "down":
 		if m.pline+1 < len(p.lines) {
 			m.pline++
 		}
 	case "up":
-		if m.pline < 0 {
-			m.inPanels = false // back up to the cards
+		if m.pline <= 0 {
+			m.inPanels = false // above the first line: back up to the cards
 		} else {
 			m.pline--
 		}
@@ -388,7 +390,9 @@ func (m *model) key(k tea.KeyPressMsg) tea.Cmd {
 	n := len(m.apps)
 	if s == "space" || (s == "down" && m.sel+m.perRow >= n && len(m.shown) > 0) { // to the panels
 		if len(m.shown) > 0 {
-			m.inPanels, m.pline = true, -1
+			m.inPanels = true
+			m.psel = min(m.psel, len(m.shown)-1)
+			m.pline = min(0, len(m.shown[m.psel].lines)-1) // on the first line: ↑↓ right away
 		}
 		return nil
 	}
