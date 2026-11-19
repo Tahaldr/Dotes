@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -73,6 +75,15 @@ var demoRepos = []demoRepo{
 	{"demo-dev/blog", "Posts about terminals and Go", "MDX", "#fcb32c", false, 7, 21 * 24 * time.Hour},
 }
 
+// demoHead: the demo clone's last commit, so "GitHub" and this PC agree (no "↓ new")
+func demoHead(nwo string) string {
+	dir := filepath.Join(filepath.Dir(app.Dir()), "projects", nwo[strings.Index(nwo, "/")+1:])
+	if out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output(); err == nil {
+		return strings.TrimSpace(string(out))
+	}
+	return "0000000000000000000000000000000000000000"
+}
+
 func demoGraphQL(q string, vars map[string]any) any {
 	switch {
 	case strings.Contains(q, "contributionsCollection"):
@@ -106,7 +117,7 @@ func demoGraphQL(q string, vars map[string]any) any {
 			nodes = append(nodes, map[string]any{"id": fmt.Sprint("R", i), "nameWithOwner": r.nwo, "name": r.nwo[strings.Index(r.nwo, "/")+1:],
 				"description": r.desc, "isPrivate": r.private, "stargazerCount": r.stars, "forkCount": r.stars / 6,
 				"pushedAt": demoAgo(r.pushed), "url": "https://github.com/" + r.nwo,
-				"defaultBranchRef": map[string]any{"name": "main", "target": map[string]any{"oid": "0000000000000000000000000000000000000000"}},
+				"defaultBranchRef": map[string]any{"name": "main", "target": map[string]any{"oid": demoHead(r.nwo)}},
 				"primaryLanguage":  map[string]any{"name": r.lang, "color": r.color}})
 		}
 		return map[string]any{"viewer": map[string]any{"login": demoLogin, "repositories": map[string]any{
