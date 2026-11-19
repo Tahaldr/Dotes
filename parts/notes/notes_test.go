@@ -237,7 +237,7 @@ func TestTabs(t *testing.T) {
 	if !strings.Contains(out, "Groceries") || strings.Contains(out, "Ideas  ") {
 		t.Fatal("the todo tab should list only todo lists:\n" + out)
 	}
-	for _, keys := range [][]string{{"tab"}, {"2"}, {"click:40,0"}} {
+	for _, keys := range [][]string{{"tab"}, {"2"}, {"click:35,0"}} {
 		out = runDump(100, 24, keys)
 		if !strings.Contains(out, "hello there") || strings.Contains(out, "2/3") {
 			t.Fatalf("%v should open the Notes tab:\n%s", keys, out)

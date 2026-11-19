@@ -89,9 +89,9 @@ var keyTable = []keyHelp{
 	{"Tabs", "{ / }", "move the tab left / right", ""},
 	{"Tabs", "ctrl+c", "close the tab (quits on the last one)", ""},
 	{"Other", "w", "tasks: copies, moves and deletes with progress (x cancels one)", "tasks"},
-	{"Other", "~ / F1", "this page (h here hides / shows the key hints)", "all keys"},
+	{"Other", "F1 / ~", "this page (h here hides / shows the key hints)", "all keys"},
 	{"Other", "g c , m", "first key of a combo: a popup shows what can follow", ""},
-	{"Other", "q", "quit (with --cwd-file the shell goes to this folder)", "quit"},
+	{"Other", "q", "back to Home (opened with dotes f: quit, and the shell goes to this folder)", "back"},
 	{"Other", "Q", "quit and stay where you were", ""},
 }
 
@@ -140,7 +140,7 @@ func hintRows(w, maxRows int, extra []hintItem) []string {
 			continue
 		}
 		it := hintItem{hintKey(h.keys), h.hint}
-		if strings.HasPrefix(h.keys, "~") {
+		if strings.HasPrefix(h.keys, "F1") {
 			last = it
 			continue
 		}

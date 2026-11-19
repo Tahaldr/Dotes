@@ -5,11 +5,11 @@ package files
 
 import (
 	"fmt"
+	"github.com/Tahaldr/dotes/internal/ui"
 	"path/filepath"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 )
 
 type tabSnap struct {
@@ -127,20 +127,21 @@ func (m *model) renameTab() {
 	})
 }
 
-// tabBar: one row of tabs at the top (only when there's more than one, or a named one)
+// tabBar: the Dotes tab row: "Files", then the folder tabs when there's more than one
+// (or a named one), and what's being copied / moved on the right
 func (m *model) tabBar() string {
-	if len(m.tabs) == 0 {
-		return ""
-	}
-	m.tabs[m.tabIdx] = m.snap()
-	var parts []string
-	for i := range m.tabs {
-		label := fmt.Sprintf(" %d %s ", i+1, trunc(m.tabName(i), 20))
-		if i == m.tabIdx {
-			parts = append(parts, lipgloss.NewStyle().Background(cAcc).Foreground(cBg).Bold(true).Render(label))
-		} else {
-			parts = append(parts, lipgloss.NewStyle().Background(cDim).Foreground(cHint).Render(label))
+	var ts []ui.Tab
+	if len(m.tabs) > 0 {
+		m.tabs[m.tabIdx] = m.snap()
+		for i := range m.tabs {
+			ts = append(ts, ui.Tab{Name: fmt.Sprintf("%d %s", i+1, trunc(m.tabName(i), 20))})
 		}
 	}
-	return pad(" "+strings.Join(parts, " "), m.w)
+	right := ""
+	if n := m.running(); n > 0 {
+		right = fg(cYellow).Render(fmt.Sprintf("%d task%s · w", n, map[bool]string{true: "s"}[n > 1]))
+	}
+	line, xs := ui.TabRow(icFolder, "Files", ts, m.tabIdx, right, m.w)
+	m.tabXs = xs
+	return line
 }

@@ -12,20 +12,21 @@ import (
 
 // Nerd Font icons
 const (
-	icTodos    = "\U000F0132" // 󰄲
-	icNotes    = "\U000F082E" // 󰠮
-	icBox      = "\U000F0131" // 󰄱
-	icBoxDone  = "\U000F0135" // 󰄵
-	icFold     = "\U000F0142" // 󰅂
-	icArchive  = "\U000F003C" // 󰀼
-	icHeading  = "\U000F0270" // 󰉰
-	icCalendar = "\U000F00ED" // 󰃭
-	icMove     = "\U000F0450" // 󰑐
-	icSearch   = ""          //
-	icEdit     = ""          //
-	icInfo     = ""          //
-	icWarn     = ""          //
-	icBook     = "\U000F00BE" // 󰂾
+	icTodos      = "\U000F0132" // 󰄲
+	icNotes      = "\U000F082E" // 󰠮
+	icBox        = "\U000F0131" // 󰄱
+	icBoxDone    = "\U000F0135" // 󰄵
+	icFold       = "\U000F0142" // 󰅂
+	icArchive    = "\U000F003C" // 󰀼
+	icHeading    = "\U000F0270" // 󰉰
+	icCalendar   = "\U000F00ED" // 󰃭
+	icMove       = "\U000F0450" // 󰑐
+	icSearch     = ""          //
+	icEdit       = ""          //
+	icInfo       = ""          //
+	icWarn       = ""          //
+	icBook       = "\U000F00BE" // 󰂾
+	icFolderOpen = "\U000F0770" // 󰝰
 )
 
 type keyHelp struct {
@@ -89,9 +90,9 @@ var keyTable = []keyHelp{
 	{"edit", "Typing", "~/  C:\\", "start a path: its folder's files pop up, tab / shift+tab put one in, enter keeps it", "path"},
 	{"edit", "Typing", "ctrl+w  ctrl+u", "delete a word / everything before the cursor", ""},
 
-	{"", "Other", "~ / F1", "this page (h here hides / shows the key hints)", "all keys"},
+	{"", "Other", "F1 / ~", "this page (h here hides / shows the key hints)", "all keys"},
 	{"", "Other", "g d y c", "first key of a combo: a popup shows what can follow", ""},
-	{"", "Other", "q", "quit (everything is saved as you go)", "quit"},
+	{"", "Other", "q", "back to Home (opened with dotes n: quit; everything is saved as you go)", "back"},
 }
 
 // hintKey is the short key shown in the bar: "j/k" from "j / k  ↓ / ↑"
@@ -114,7 +115,7 @@ func hintRows(ctx string, w, maxRows int) []string {
 			continue
 		}
 		it := hintItem{hintKey(h.keys), h.hint}
-		if strings.HasPrefix(h.keys, "~") {
+		if strings.HasPrefix(h.keys, "F1") {
 			last = it
 			continue
 		}

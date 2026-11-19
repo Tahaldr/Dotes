@@ -593,6 +593,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.w, m.h = msg.Width, msg.Height
+	case app.ShownMsg:
+		if msg.ID == "notes" {
+			m.quitting = false // q went back to Home: go on when you come back
+		}
 	case app.OpenMsg: // Files' gn: this folder's note
 		m.openProject(msg.Path)
 	case tickMsg:

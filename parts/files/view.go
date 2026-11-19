@@ -31,16 +31,13 @@ func (m *model) View() tea.View {
 }
 
 func (m *model) mainView() string {
-	m.imgWant = imgSpot{}                          // set again below if the preview is a picture
-	hints := []string{" " + keyHints("~", "keys")} // hidden hints: only the way to the full list
+	m.imgWant = imgSpot{}                           // set again below if the preview is a picture
+	hints := []string{" " + keyHints("F1", "keys")} // hidden hints: only the way to the full list
 	if m.hintsOn {
 		hints = hintRows(m.w, 2, m.contextHints())
 	}
 	tabRow := m.tabBar()
-	m.bodyY = 1
-	if tabRow != "" {
-		m.bodyY = 2
-	}
+	m.bodyY = 2
 	m.bodyH = max(1, m.h-1-m.bodyY-len(hints))
 
 	// column widths 1 : 4 : 3, like yazi (no parent column in narrow windows)
@@ -98,10 +95,7 @@ func (m *model) mainView() string {
 
 	sep := fg(cDim).Render("│")
 	lines := make([]string, 0, m.h)
-	if tabRow != "" {
-		lines = append(lines, tabRow)
-	}
-	lines = append(lines, m.header())
+	lines = append(lines, tabRow, m.header())
 	for r := 0; r < h; r++ {
 		row := ""
 		if pw > 0 {

@@ -22,6 +22,57 @@ type appItem struct {
 	run                   string // a command; "dotes f/n/g" switches part, "projects" opens the project picker, "" = back to the prompt
 }
 
+// partApps: the Dotes parts as apps on Home, for the parts picked in dotes setup
+var partApps = map[string]appItem{
+	"files": {name: "Files", hint: "file manager", key: "f", icon: "\U000F024B", run: "dotes f"},
+	"notes": {name: "Notes", hint: "todos and notes", key: "o", icon: "\U000F082E", run: "dotes n"},
+	"git":   {name: "Git", hint: "github", key: "g", icon: "\U000F02A2", run: "dotes g"},
+}
+
+// withParts: the apps from home.txt, without the parts you didn't pick, and with the picked
+// parts that home.txt doesn't list added (before "back to the prompt")
+func withParts(apps []appItem, picked []string) []appItem {
+	on := map[string]bool{}
+	for _, id := range picked {
+		on[id] = true
+	}
+	var out []appItem
+	have, keys := map[string]bool{}, map[string]bool{"t": true, "q": true, "x": true}
+	for _, a := range apps {
+		id := partOfRun(a.run)
+		if a.run == "projects" && !on["files"] { // the picker is Files'
+			continue
+		}
+		if id != "" && !on[id] {
+			continue
+		}
+		have[id] = true
+		for p, pa := range partApps { // "Files" that opens the project picker counts as Files
+			if strings.EqualFold(a.name, pa.name) {
+				have[p] = true
+			}
+		}
+		keys[a.key] = true
+		out = append(out, a)
+	}
+	at := len(out)
+	for at > 0 && out[at-1].run == "" {
+		at--
+	}
+	var add []appItem
+	for _, p := range []string{"files", "notes", "git"} {
+		if on[p] && !have[p] {
+			a := partApps[p]
+			if keys[a.key] {
+				a.key = ""
+			}
+			keys[a.key] = true
+			add = append(add, a)
+		}
+	}
+	return append(append(append([]appItem{}, out[:at]...), add...), out[at:]...)
+}
+
 type prayerCfg struct {
 	city, country string
 	method        int
@@ -79,9 +130,8 @@ prayer =
 app = Nvim | editor | n | f36f | nvim .
 app = VS Code | code | v | f0a1e | code .
 app = Projects | pick one | p | f07b | projects
-app = Files | file manager | f | f024b | dotes f
-app = Notes | todos and notes | o | f082e | dotes n
-app = Git | github | g | f02a2 | dotes g
+# The Dotes parts you picked (Files, Notes, Git) show up by themselves; add a line with
+# dotes f / n / g to change their name, key or place.
 
 # project picker: folders searched for projects (with .git, package.json, go.mod, ...), ; between
 project_roots = ~/code ; ~/projects ; ~/source/repos ; ~/Documents/GitHub

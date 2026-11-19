@@ -3,6 +3,7 @@ package shell
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -61,7 +62,7 @@ func TestSetupFirstRun(t *testing.T) {
 	if !app.HasShared() || strings.Join(app.LoadShared().Parts, ",") != "home" {
 		t.Fatalf("saved parts: %v\n%s", app.LoadShared().Parts, o)
 	}
-	if !strings.Contains(o, "1 Home") || !strings.Contains(o, "Nvim") {
+	if strings.Contains(o, "Home · ") || !strings.Contains(o, "Nvim") { // Home alone: no switcher
 		t.Fatalf("no ready part picked:\n%s", o)
 	}
 	m = New(Options{Notebook: t.TempDir(), FilesPath: t.TempDir(), Dump: true, Setup: true})
@@ -79,8 +80,8 @@ func TestFirstFrameEverySize(t *testing.T) {
 		m := New(Options{Notebook: t.TempDir(), FilesPath: dir, Dump: true})
 		m.View() // before any size
 		o := run(m, sz[0], sz[1])
-		if sz[0] >= 80 && !strings.HasPrefix(o, " dotes  1 Files") {
-			t.Fatalf("%v: no top bar:\n%s", sz, o)
+		if first, _, _ := strings.Cut(o, "\n"); sz[0] >= 80 && (!strings.Contains(first, "Files") || strings.Contains(first, "·")) {
+			t.Fatalf("%v: the tab row should say Files (no switcher with one part):\n%s", sz, o)
 		}
 	}
 	m := New(Options{Notebook: t.TempDir(), FilesPath: dir, Dump: true, Setup: true})
@@ -96,14 +97,14 @@ func TestSwitchAndMouse(t *testing.T) {
 	m.parts = nil
 	m.loadParts(app.LoadShared().Parts, "files")
 	o := run(m, 100, 20, "alt+2")
-	if !strings.Contains(o, "inside notes") || !strings.Contains(o, "2 Notes") || !strings.Contains(o, "alt+1-2 switch") {
-		t.Fatalf("alt+2 should open Notes:\n%s", o)
+	if first, _, _ := strings.Cut(o, "\n"); !strings.Contains(o, "inside notes") || !strings.HasSuffix(strings.TrimSpace(first), "Files · Notes") {
+		t.Fatalf("alt+2 should open Notes, with the switcher on its first line:\n%s", o)
 	}
 	run(m, 100, 20, "j", "click:5,3")
-	if strings.Join(nf.got, " ") != "j click y 2" {
-		t.Fatalf("keys / mouse (moved up by the bar): %v", nf.got)
+	if strings.Join(nf.got, " ") != "j click y 3" {
+		t.Fatalf("keys / mouse go to the part as they are: %v", nf.got)
 	}
-	o = run(m, 100, 20, "click:10,0") // the Files tab
+	o = run(m, 100, 20, "click:"+strconv.Itoa(m.tabX[0][0]+1)+",0") // Files in the switcher
 	if m.active != 0 || strings.Contains(o, "inside notes") {
 		t.Fatalf("click on the Files tab:\n%s", o)
 	}
@@ -148,9 +149,12 @@ func TestHomeSwitchesParts(t *testing.T) {
 	if m.cur().info.ID != "files" {
 		t.Fatalf("f on Home should show Files, got %s", m.cur().info.ID)
 	}
-	run(m, 110, 30, "alt+1", "o") // Notes isn't picked: it's added for this run
-	if m.cur().info.ID != "notes" || len(m.parts) != 3 {
-		t.Fatalf("o on Home should open Notes, got %s (%d parts)", m.cur().info.ID, len(m.parts))
+	run(m, 110, 30, "q") // q in a part: back to Home, not out of Dotes
+	if m.cur().info.ID != "home" {
+		t.Fatalf("q in Files should go back to Home, got %s", m.cur().info.ID)
+	}
+	if o := run(m, 110, 30); strings.Contains(o, "Notes") || strings.Contains(o, "Files · ") {
+		t.Fatalf("Home: no Notes app (not picked) and no switcher:\n%s", o)
 	}
 	app.SaveParts([]string{"files"})
 }

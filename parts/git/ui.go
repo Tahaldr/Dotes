@@ -3,6 +3,7 @@ package git
 import (
 	"fmt"
 	dotesapp "github.com/Tahaldr/dotes/internal/app"
+	"github.com/Tahaldr/dotes/internal/ui"
 	fswatch "github.com/Tahaldr/dotes/internal/watch"
 	"io"
 	"os"
@@ -1016,7 +1017,7 @@ func (m *model) key(k tea.KeyPressMsg) tea.Cmd {
 	case "ctrl+p", ":":
 		m.openPicker("", nil)
 		return nil
-	case "?":
+	case "?", "f1", "~":
 		m.openHelp()
 		return nil
 	case "H":
@@ -1849,7 +1850,7 @@ func (m *model) commands() []command {
 			}
 			return m.refresh()
 		}},
-		command{"All keys", "?", func(m *model) tea.Cmd { m.openHelp(); return nil }},
+		command{"All keys", "F1", func(m *model) tea.Cmd { m.openHelp(); return nil }},
 		command{"Short / full key hints", "H", func(m *model) tea.Cmd { return m.toggleHints() }},
 		command{"Settings (opens the settings file in your editor)", "", func(m *model) tea.Cmd { return m.editConfig() }},
 		command{"Update Dotes", "", func(m *model) tea.Cmd {
@@ -1967,36 +1968,19 @@ func (m *model) render() string {
 }
 
 func (m *model) tabsBar() string {
-	out := " "
-	x := 1
+	var ts []ui.Tab
 	for i, t := range tabs {
-		label := " " + fmt.Sprint(i+1) + " " + t.icon + " " + t.name + " "
+		tb := ui.Tab{Icon: t.icon, Name: t.name, Off: t.batch > 0}
 		if i == tabInbox && m.unread > 0 {
-			label = " " + fmt.Sprint(i+1) + " " + t.icon + " " + t.name + " " + fmt.Sprint(m.unread) + " "
+			tb.Count = fmt.Sprint(m.unread)
 		}
-		var s string
-		switch {
-		case i == m.tab:
-			s = lipgloss.NewStyle().Foreground(cAcc).Background(cDim).Bold(true).Render(label)
-		case t.batch > 0:
-			s = fg(cMut).Render(label)
-		default:
-			s = fg(cHint).Render(label)
-		}
-		w := width(label)
-		m.addZone(x, 0, x+w-1, 0, "tab", i)
-		out += s + " "
-		x += w + 1
+		ts = append(ts, tb)
 	}
-	right := ""
-	if m.login != "" {
-		right += fg(cMut).Render(icGithub+" "+m.login) + " "
+	line, xs := ui.TabRow(icGithub, "Git", ts, m.tab, "", m.w) // who you are: Home says hi
+	for i, x := range xs {
+		m.addZone(x[0], 0, x[1]-1, 0, "tab", i)
 	}
-	gap := m.w - width(out) - width(right)
-	if gap < 1 {
-		return pad(out, m.w)
-	}
-	return out + strings.Repeat(" ", gap) + right
+	return line
 }
 
 func (m *model) pathBar() string {

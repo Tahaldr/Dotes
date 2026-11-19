@@ -172,14 +172,14 @@ func TestWrapHintsKeepsHelp(t *testing.T) {
 	for i := 0; i < 40; i++ {
 		h = append(h, hint{fmt.Sprintf("k%d", i), "some action"})
 	}
-	h = append(h, hint{"?", "all keys"})
+	h = append(h, hint{"F1", "all keys"})
 	lines := wrapHints(h, 80)
 	if len(lines) > 2 {
 		t.Fatalf("more than 2 lines: %d", len(lines))
 	}
 	last := lines[len(lines)-1]
-	if last[len(last)-1][0] != "?" {
-		t.Fatalf("? must stay visible, last = %v", last[len(last)-1])
+	if last[len(last)-1][0] != "F1" {
+		t.Fatalf("F1 must stay visible, last = %v", last[len(last)-1])
 	}
 }
 

@@ -3,7 +3,7 @@
 package shell
 
 import (
-	"strconv"
+	"os"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -13,6 +13,7 @@ import (
 	"github.com/Tahaldr/dotes/parts/git"
 	"github.com/Tahaldr/dotes/parts/home"
 	"github.com/Tahaldr/dotes/parts/notes"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Maker builds a part the first time it's opened.
@@ -25,16 +26,18 @@ type part struct {
 }
 
 type Model struct {
-	parts  []*part // the picked parts that this version has, in tab order
-	active int
-	w, h   int
-	bar    bool   // top bar shown
-	newVer string // a newer Dotes is out
-	setup  *setup // the part picker (first run / dotes setup)
-	only   bool   // dotes setup: quit after picking
-	dump   bool
-	tabX   [][2]int // x start / end of each tab in the bar (mouse)
-	makers map[string]Maker
+	parts   []*part // the picked parts that this version has, in tab order
+	active  int
+	w, h    int
+	bar     bool   // top bar shown
+	newVer  string // a newer Dotes is out
+	setup   *setup // the part picker (first run / dotes setup)
+	only    bool   // dotes setup: quit after picking
+	dump    bool
+	tabX    [][2]int // x start / end of each part in the switcher, on screen (mouse)
+	makers  map[string]Maker
+	start   string // the part asked for on the command line: q there leaves Dotes
+	cwdFile string
 }
 
 // Options for starting Dotes.
@@ -52,7 +55,7 @@ type Options struct {
 
 // New makes the shell. The first time (no dotes.txt) it opens the part picker first.
 func New(o Options) *Model {
-	m := &Model{dump: o.Dump, only: o.Setup}
+	m := &Model{dump: o.Dump, only: o.Setup, start: o.Start, cwdFile: o.Files.CwdFile}
 	m.makers = map[string]Maker{
 		"home": func() tea.Model {
 			return home.New(home.Options{CwdFile: o.Files.CwdFile, Projects: o.Projects, Dump: o.Dump})
@@ -111,11 +114,78 @@ func (m *Model) loadParts(picked []string, start string) {
 	}
 }
 
-func (m *Model) barH() int {
-	if m.bar && m.setup == nil {
-		return 1
+// barH: the parts draw the switcher's row themselves now (their tab row), so nothing is
+// added above them
+func (m *Model) barH() int { return 0 }
+
+// switcherOn: the other parts are shown at the right of the part's tab row (not on Home,
+// which is the place you pick from; not with one part)
+func (m *Model) switcherOn() bool {
+	p := m.cur()
+	return m.bar && m.setup == nil && len(m.parts) > 1 && p != nil && p.info.ID != "home"
+}
+
+func (m *Model) switchItems() []ui.SwitchItem {
+	var items []ui.SwitchItem
+	for i, p := range m.parts {
+		items = append(items, ui.SwitchItem{Name: p.info.Name, On: i == m.active})
 	}
-	return 0
+	if m.newVer != "" {
+		items = append(items, ui.SwitchItem{Name: "⬆ " + strings.TrimPrefix(m.newVer, "v") + " dotes update"})
+	}
+	return items
+}
+
+// setReserve tells the parts how much of their first line the switcher takes
+func (m *Model) setReserve() {
+	ui.Reserve = 0
+	if m.switcherOn() {
+		var names []string
+		for _, it := range m.switchItems() {
+			names = append(names, it.Name)
+		}
+		if w := ui.SwitcherWidth(names); w < m.w/2 {
+			ui.Reserve = w
+		}
+	}
+}
+
+// home: where q goes back to (-1 = q leaves Dotes: no Home, or this part was asked for
+// on the command line)
+func (m *Model) home() int {
+	p := m.cur()
+	if p == nil || p.info.ID == "home" || p.info.ID == m.start {
+		return -1
+	}
+	for i, q := range m.parts {
+		if q.info.ID == "home" {
+			return i
+		}
+	}
+	return -1
+}
+
+type backMsg struct{}
+
+// catchQuit turns a part's quit into "back to Home"
+func catchQuit(cmd tea.Cmd) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		switch msg := cmd().(type) {
+		case tea.QuitMsg:
+			return backMsg{}
+		case tea.BatchMsg:
+			out := make(tea.BatchMsg, len(msg))
+			for i, c := range msg {
+				out[i] = catchQuit(c)
+			}
+			return out
+		default:
+			return msg
+		}
+	}
 }
 
 func (m *Model) cur() *part {
@@ -194,6 +264,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd = tea.Batch(cmd, m.toActive(app.OpenMsg{Path: msg.Path}))
 		}
 		return m, cmd
+	case backMsg: // q in a part: Home again (the part keeps where it was)
+		if m.cwdFile != "" {
+			os.WriteFile(m.cwdFile, nil, 0o644) // Files wrote its folder for a quit that didn't happen
+		}
+		if h := m.home(); h >= 0 {
+			return m, m.switchTo(h)
+		}
+		return m, tea.Quit
 	case app.UpdateMsg:
 		if app.Newer(msg.Latest, app.Version) {
 			m.newVer = msg.Latest
@@ -211,9 +289,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.setup != nil {
 			return m, m.setupClick(msg.Y)
 		}
-		if msg.Y < m.barH() {
+		if msg.Y == 0 && m.switcherOn() && ui.Reserve > 0 && msg.X >= m.w-ui.Reserve {
 			for i, x := range m.tabX {
-				if msg.X >= x[0] && msg.X < x[1] {
+				if msg.X >= x[0] && msg.X < x[1] && i < len(m.parts) {
 					return m, m.switchTo(i)
 				}
 			}
@@ -255,6 +333,9 @@ func (m *Model) toActive(msg tea.Msg) tea.Cmd {
 	}
 	var cmd tea.Cmd
 	p.m, cmd = p.m.Update(msg)
+	if m.home() >= 0 {
+		cmd = catchQuit(cmd)
+	}
 	return cmd
 }
 
@@ -279,6 +360,7 @@ func (m *Model) View() tea.View {
 		return v
 	}
 	p := m.cur()
+	m.setReserve()
 	var v tea.View
 	if p == nil || p.m == nil {
 		v = tea.NewView(m.emptyView())
@@ -288,45 +370,24 @@ func (m *Model) View() tea.View {
 	} else {
 		v = p.m.View()
 	}
-	if m.barH() > 0 {
-		v.Content = m.barView() + "\n" + v.Content
-		if v.Cursor != nil {
-			v.Cursor.Y += m.barH()
-		}
+	if ui.Reserve > 0 {
+		v.Content = m.withSwitcher(v.Content)
 	}
 	return v
 }
 
-// barView: " dotes  1 Files │ 2 Notes            ⬆ 0.2.0 dotes update  alt+1-2 "
-func (m *Model) barView() string {
-	left := " " + ui.FG(ui.Acc).Bold(true).Render("dotes") + "  "
-	x := ui.Width(left)
+// withSwitcher draws the parts over the right end of the first line
+func (m *Model) withSwitcher(content string) string {
+	first, rest, _ := strings.Cut(content, "\n")
+	sw, xs := ui.Switcher(m.switchItems())
+	x0 := m.w - ui.Reserve
 	m.tabX = m.tabX[:0]
-	for i, p := range m.parts {
-		if i > 0 {
-			sep := ui.FG(ui.Dim).Render(" │ ")
-			left += sep
-			x += ui.Width(sep)
-		}
-		num := ui.FG(ui.Mut).Render(strconv.Itoa(i+1) + " ")
-		name := ui.FG(ui.Hint).Render(p.info.Name)
-		if i == m.active {
-			num = ui.FG(ui.Acc).Render(strconv.Itoa(i+1) + " ")
-			name = ui.FG(ui.Acc).Bold(true).Underline(true).Render(p.info.Name)
-		}
-		tab := num + name
-		m.tabX = append(m.tabX, [2]int{x, x + ui.Width(tab)})
-		left += tab
-		x += ui.Width(tab)
+	for _, x := range xs {
+		m.tabX = append(m.tabX, [2]int{x0 + x[0], x0 + x[1]})
 	}
-	right := ""
-	if m.newVer != "" {
-		right += ui.FG(ui.Green).Render("⬆ "+strings.TrimPrefix(m.newVer, "v")+" dotes update") + "   "
-	}
-	if len(m.parts) > 1 {
-		right += ui.FG(ui.Mut).Render("alt+1-"+strconv.Itoa(len(m.parts))+" switch") + " "
-	}
-	return ui.Spread(left, right, m.w)
+	left := ansi.Truncate(first, x0, "")
+	left += strings.Repeat(" ", max(0, x0-ui.Width(left)))
+	return left + "\x1b[0m" + sw + "\n" + rest
 }
 
 // emptyView: none of the picked parts is in this version yet

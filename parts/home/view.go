@@ -441,10 +441,7 @@ func (m *model) dashboard() string {
 	if m.style == "palette" {
 		hot = "ctrl+t themes"
 	}
-	keysKey := "?"
-	if m.style == "palette" {
-		keysKey = "F1"
-	}
+	keysKey := "F1" // the keys page is F1 in every part
 	foot := []string{""}
 	date := m.now.Format("Monday, Jan 2  ·  15:04")
 	title := date

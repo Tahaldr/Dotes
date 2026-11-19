@@ -104,6 +104,7 @@ type model struct {
 	// filled by View, used by the mouse
 	colX  [3][2]int // x start / end of parent, current, preview columns
 	bodyY int       // first row of the columns
+	tabXs [][2]int  // where the folder tabs are in the tab row (clicks)
 	bodyH int
 }
 
@@ -391,6 +392,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if s, ok := msg.(app.ShownMsg); ok {
 		m.hidden = s.ID != "files"
+		if !m.hidden {
+			m.quitting = false // q went back to Home: this part goes on when you come back
+		}
 		m.imgShown = imgSpot{} // the screen was redrawn: put the picture back when shown
 		return m, m.imgSyncLater()
 	}
@@ -930,6 +934,15 @@ func (m *model) column(x int) int {
 
 func (m *model) click(c tea.MouseClickMsg) tea.Cmd {
 	if m.help || m.prompt != nil || m.question != nil || m.showTasks || m.showMarks || m.spot != nil || m.menu != nil || c.Button != tea.MouseLeft {
+		return nil
+	}
+	if c.Y == 0 { // the tab row: a folder tab
+		for i, x := range m.tabXs {
+			if c.X >= x[0] && c.X < x[1] {
+				m.switchTab(i)
+				return m.previewCmd()
+			}
+		}
 		return nil
 	}
 	row := c.Y - m.bodyY

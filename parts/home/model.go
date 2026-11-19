@@ -118,7 +118,7 @@ func (m *model) tick() tea.Cmd {
 func recentFile() string { return app.File("home-recent.txt") }
 
 func (m *model) orderApps() {
-	m.apps = append([]appItem(nil), m.cfg.apps...)
+	m.apps = withParts(m.cfg.apps, app.LoadShared().Parts)
 	if !m.cfg.recent {
 		return
 	}

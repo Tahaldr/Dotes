@@ -21,7 +21,7 @@ func (m *model) hintItems() []hint {
 	}
 	var out []hint
 	for _, x := range h {
-		if x[0] == "ctrl+p" || x[0] == "?" || shortKeep[x[1]] {
+		if x[0] == "ctrl+p" || x[0] == "F1" || shortKeep[x[1]] {
 			out = append(out, x)
 		}
 	}
@@ -121,9 +121,9 @@ func (m *model) allHints() []hint {
 			h = append(h, hint{"c", "clone"})
 		}
 		h = append(h, hint{"N", "new repo"}, hint{"R", "rename"}, hint{"E", "describe"}, hint{"V", "visibility"}, hint{"A", "archive"}, hint{"D", "delete"},
-			hint{"s", "star"}, hint{"F", "fork"}, hint{"o", "browser"}, hint{"y", "copy link"}, hint{"r", "refresh"}, hint{"1-7", "tabs"}, hint{"q", "quit"})
+			hint{"s", "star"}, hint{"F", "fork"}, hint{"o", "browser"}, hint{"y", "copy link"}, hint{"r", "refresh"}, hint{"1-7", "tabs"}, hint{"q", "back"})
 	}
-	return append(h, hint{"ctrl+p", "commands"}, hint{"?", "all keys"})
+	return append(h, hint{"ctrl+p", "commands"}, hint{"F1", "all keys"})
 }
 
 func (m *model) exHints(ex *explorer) []hint {
@@ -262,7 +262,7 @@ func (m *model) runHints() []hint {
 
 const hintSep = "  ·  "
 
-// wrapHints splits the hints into at most 2 lines that fit; "?" always stays visible
+// wrapHints splits the hints into at most 2 lines that fit; "F1" always stays visible
 func wrapHints(h []hint, w int) [][]hint {
 	plainW := func(x hint) int { return width(x[0]) + 1 + width(x[1]) }
 	var lines [][]hint
@@ -285,7 +285,7 @@ func wrapHints(h []hint, w int) [][]hint {
 		lines = append(lines, cur)
 	}
 	if len(lines) > 2 {
-		// too many for 2 lines: keep what fits and end with "?"
+		// too many for 2 lines: keep what fits and end with "F1"
 		last := lines[1]
 		for len(last) > 1 {
 			lw := 1
@@ -295,12 +295,12 @@ func wrapHints(h []hint, w int) [][]hint {
 				}
 				lw += plainW(x)
 			}
-			if lw+width(hintSep)+plainW(hint{"?", "all keys"}) <= w {
+			if lw+width(hintSep)+plainW(hint{"F1", "all keys"}) <= w {
 				break
 			}
 			last = last[:len(last)-1]
 		}
-		lines = [][]hint{lines[0], append(last, hint{"?", "all keys"})}
+		lines = [][]hint{lines[0], append(last, hint{"F1", "all keys"})}
 	}
 	return lines
 }
@@ -334,7 +334,7 @@ func (m *model) hintLines(y0 int) []string {
 			start := width(plain)
 			plain += p[0] + " " + p[1]
 			switch p[0] {
-			case "?":
+			case "F1":
 				m.addZone(start, y, width(plain)-1, y, "hint-help", 0)
 			case "ctrl+p":
 				m.addZone(start, y, width(plain)-1, y, "hint-pal", 0)

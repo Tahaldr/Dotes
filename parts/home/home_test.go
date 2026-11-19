@@ -33,6 +33,7 @@ func fresh(t *testing.T) *model {
 	t.Helper()
 	os.Remove(configFile())
 	os.Remove(app.File("home-style.txt"))
+	app.SaveParts([]string{"home", "files", "notes", "git"})
 	m := newModel()
 	m.dump = true
 	return m
@@ -68,6 +69,25 @@ func TestCardsMoveOpenSwitch(t *testing.T) {
 	o = run(m, 110, 30, "v") // VS Code by its key: in dump mode it says what it would run
 	if !strings.Contains(o, "would run: code .") {
 		t.Fatalf("key v:\n%s", o)
+	}
+}
+
+// the picked parts are apps on Home by themselves; the others aren't there
+func TestPartApps(t *testing.T) {
+	defer app.SaveParts([]string{"home", "files", "notes", "git"})
+	names := func(apps []appItem) string {
+		var n []string
+		for _, a := range apps {
+			n = append(n, a.name+"/"+a.key)
+		}
+		return strings.Join(n, " ")
+	}
+	base := []appItem{{name: "Nvim", key: "n", run: "nvim ."}, {name: "Files", key: "f", run: "projects"}, {name: "Notes", key: "o", run: "dotes n"}, {name: "Shell", key: "s"}}
+	if got := names(withParts(base, []string{"home", "files", "git"})); got != "Nvim/n Files/f Git/g Shell/s" {
+		t.Fatalf("got %s", got)
+	}
+	if got := names(withParts(base, []string{"home", "notes"})); got != "Nvim/n Notes/o Shell/s" {
+		t.Fatalf("got %s", got)
 	}
 }
 

@@ -3,6 +3,7 @@ package notes
 import (
 	"fmt"
 	"github.com/Tahaldr/dotes/internal/paths"
+	"github.com/Tahaldr/dotes/internal/ui"
 	"os"
 	"strings"
 
@@ -72,7 +73,7 @@ func (m *model) hintCtx() string {
 }
 
 func (m *model) mainView() string {
-	hints := []string{" " + keyHints("~", "keys")} // hidden hints: only the way to the full list
+	hints := []string{" " + keyHints("F1", "keys")} // hidden hints: only the way to the full list
 	if m.hintsOn {
 		hints = hintRows(m.hintCtx(), m.w, 2)
 	}
@@ -110,47 +111,47 @@ func (m *model) mainView() string {
 // ---------------------------------------------------------------------------
 
 func (m *model) header() string {
-	left := " " + fg(cAcc).Render(icBook) + " " + fg(cTxt).Bold(true).Render("Notes") + "    "
+	var ts []ui.Tab
+	active := 0
 	for i, kind := range tabs {
-		name, icon, n := "Todo lists", icTodos, m.count(kind)
+		t := ui.Tab{Name: "Todo lists", Icon: icTodos}
+		n := m.count(kind)
 		switch kind {
 		case "notes":
-			name, icon = "Notes", icNotes
+			t.Name, t.Icon = "Notes", icNotes
 		case "today":
-			name, icon, n = "Today", icCalendar, m.dueSoon()
+			t.Name, t.Icon, n = "Today", icCalendar, m.dueSoon()
+			t.Warn = n > 0
 		}
-		on := kind == m.tab
-		st, cst := fg(cHint), fg(cMut)
-		switch {
-		case on:
-			st, cst = fg(cAcc).Bold(true), fg(cAcc)
-		case kind == "today" && n > 0:
-			st, cst = fg(cYellow), fg(cYellow)
-		}
-		label := " " + st.Render(icon+" "+name)
 		if n > 0 {
-			label += " " + cst.Render(fmt.Sprint(n))
+			t.Count = fmt.Sprint(n)
 		}
-		label += " "
-		x := width(left)
-		left += label + "  "
-		m.tabX[i] = [2]int{x, x + width(label)}
+		if kind == m.tab {
+			active = i
+		}
+		ts = append(ts, t)
 	}
-	right := fg(cMut).Render(prettyPath(cfg.notebook)) + " "
-	return spread(left, right, m.w)
+	line, xs := ui.TabRow(icBook, "Notes", ts, active, "", m.w)
+	for i := range xs {
+		m.tabX[i] = xs[i]
+	}
+	return line
 }
 
 // tabRule: the line under the header, thick and blue under the open tab
+// tabRule (the second line): where you are, like Files' folder and Git's path
+//
+//	󰉋 ~\Documents\Notebook › Todo lists › Groceries
 func (m *model) tabRule() string {
-	a, b := 0, 0
-	for i, kind := range tabs {
-		if kind == m.tab {
-			a, b = m.tabX[i][0], m.tabX[i][1]
-		}
+	sep := fg(cMut).Render(" › ")
+	name := map[string]string{"todos": "Todo lists", "notes": "Notes", "today": "Today"}[m.tab]
+	out := " " + fg(cAcc).Render(icFolderOpen) + "  " + fg(cHint).Render(prettyPath(cfg.notebook)) + sep
+	if d := m.current(); d != nil && m.focus == 1 && m.tab != "today" {
+		out += fg(cHint).Render(name) + sep + fg(cAcc).Bold(true).Render(d.title)
+	} else {
+		out += fg(cAcc).Bold(true).Render(name)
 	}
-	a, b = max(0, min(a, m.w)), max(0, min(b, m.w))
-	return fg(cDim).Render(strings.Repeat("─", a)) + fg(cAcc).Render(strings.Repeat("━", b-a)) +
-		fg(cDim).Render(strings.Repeat("─", m.w-b))
+	return pad(out, m.w)
 }
 
 // shown: how far a line is indented on screen (each sub-todo level is cfg.indent wide)

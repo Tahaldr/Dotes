@@ -29,7 +29,8 @@ func helpData() []helpSec {
 			{"o  y", "open in the browser / copy the link"},
 			{"r", "refresh from GitHub"},
 			{"esc", "back one step (the path at the top); from a jump, back where you came from"},
-			{"q  ctrl+c", "quit"},
+			{"q  ctrl+c", "back to Home (opened with dotes g: quit)"},
+			{"F1  ?", "this page"},
 		}},
 		{"Home (1)", []hint{
 			{"enter", "go to the item's page in Dotes"},

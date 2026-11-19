@@ -296,7 +296,7 @@ func (m *model) rdKey(k tea.KeyPressMsg) tea.Cmd {
 	s := k.String()
 	page := m.rdRows()
 	switch s {
-	case "esc", "q", "backspace", "h", "left", "?":
+	case "esc", "q", "backspace", "h", "left", "?", "f1":
 		if rd.find != "" && s == "esc" {
 			rd.find, rd.hits = "", nil
 			return nil
