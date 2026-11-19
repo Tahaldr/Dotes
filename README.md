@@ -136,7 +136,7 @@ branches, PRs with reviews, issues, CI runs and logs, notifications and a contri
   | Notes | `gf` / click | the path in the todo, in **Files** |
   | Home | `space`, `enter` | a repo in **Git**, a project in **Files**, your todos in **Notes** |
 
-![Path suggestions in Notes](docs/screenshots/notes-paths.png)
+![The Notes board](docs/screenshots/notes-board.png)
 ![Changes in Git](docs/screenshots/git-changes.png)
 
 ---
@@ -353,9 +353,9 @@ go build -o dotes .
 | File | What to show |
 |---|---|
 | `home.png` | Home, an app picked, the panels |
-| `files.png` | Files in `shop-api`, `orders/refunds.go` previewed |
+| `files.png` | Files in the demo projects, *shop-api* picked |
 | `notes.png` | Notes, the *Shop launch* list open |
-| `notes-paths.png` | typing `~/` in a todo, the suggestions open |
+| `notes-board.png` | Notes, the board of todo lists |
 | `git.png` | Git's Home (contributions, needs you, activity) |
 | `git-changes.png` | Git, *shop-api* › Changes, a diff |
 </details>
