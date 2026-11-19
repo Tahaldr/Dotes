@@ -39,9 +39,6 @@ small [shell function](#the-shell-function) to your profile. Then open a new ter
 dotes
 ```
 
-> **Just looking?** Run `dotes demo`: Dotes with a made-up notebook, projects and GitHub
-> account, in a temp folder. Nothing of yours is read or changed.
-
 <details>
 <summary><b>What you need</b> (click)</summary>
 
@@ -154,7 +151,7 @@ dotes h salat                           today's prayer times
 dotes h quick                           a one-line app picker under your prompt
 
 dotes setup     pick your parts          dotes config    open the settings
-dotes update    get the newest version   dotes demo      try it with made-up data
+dotes update    get the newest version   dotes --version
 dotes --help    everything
 ```
 
@@ -344,20 +341,5 @@ go test ./...
 go build -o dotes .
 ```
 
-<details>
-<summary><b>Screenshots for this page</b></summary>
-
-`dotes demo` opens Dotes on made-up data. Window about 130 × 36. The pictures go in
-`docs/screenshots/`:
-
-| File | What to show |
-|---|---|
-| `home.png` | Home, an app picked, the panels |
-| `files.png` | Files in the demo projects, *shop-api* picked |
-| `notes.png` | Notes, the *Shop launch* list open |
-| `notes-board.png` | Notes, the board of todo lists |
-| `git.png` | Git's Home (contributions, needs you, activity) |
-| `git-changes.png` | Git, *shop-api* › Changes, a diff |
-</details>
 
 MIT license.

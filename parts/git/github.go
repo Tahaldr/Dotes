@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"github.com/Tahaldr/dotes/internal/app"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -170,9 +169,6 @@ func cacheDir() string {
 	d, err := os.UserCacheDir()
 	if err != nil {
 		d = os.TempDir()
-	}
-	if app.Demo { // the demo keeps its made-up data away from yours
-		d = app.Dir()
 	}
 	d = filepath.Join(d, "dotes", "git")
 	os.MkdirAll(filepath.Join(d, "readme"), 0o755)
