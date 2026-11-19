@@ -36,7 +36,7 @@ The parts link to each other:
 - Files: `gi` opens the repo you're in, in Git; `gn` opens the project's note in Notes
 - Git: `ctrl+f` shows the repo folder (or the highlighted file) in Files
 - Notes: type `~/` or `C:\` in a todo and the folder's files pop up (`tab` puts one in);
-  paths on your PC show as links, and `gf` opens them in Files
+  paths on your PC show as links, and a click or `gf` opens them in Files
 
 ## Settings
 

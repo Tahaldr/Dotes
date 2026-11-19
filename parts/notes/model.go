@@ -80,6 +80,7 @@ type model struct {
 	cards        []cardRect // where each card is
 	pageX        int        // where the open list's page starts
 	editY, editX int        // where the todo being typed is on screen (-1 = not shown)
+	links        []linkZone // paths on screen (a click opens them in Files)
 	rightRows    []int      // doc line per body row (-1 = none, -2 = the way back)
 	boxX         []int      // where the checkbox is on that row
 	lastClick    time.Time
@@ -962,6 +963,11 @@ func (m *model) click(c tea.MouseClickMsg) tea.Cmd {
 			}
 		}
 		return nil
+	}
+	for _, z := range m.links {
+		if c.Y == z.y && c.X >= z.x0 && c.X < z.x1 {
+			return openInFiles(z.path)
+		}
 	}
 	r := c.Y - m.bodyY
 	if r < 0 || r >= m.bodyH {

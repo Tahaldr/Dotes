@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/Tahaldr/dotes/internal/app"
 	"github.com/Tahaldr/dotes/internal/paths"
+	"github.com/charmbracelet/x/ansi"
 )
 
 const icFolder, icFile = "\U000F024B", "\U000F0214" // 󰉋 󰈔
@@ -123,6 +124,29 @@ func (m *model) suggestPopup(lines []string) {
 	}
 	x := min(max(0, m.editX), max(0, m.w-w-1))
 	put(lines, x, y, box, w)
+}
+
+type linkZone struct {
+	y, x0, x1 int
+	path      string
+}
+
+// findLinks notes where the paths that exist are in the todo list or note on screen
+func (m *model) findLinks(body []string) {
+	m.links = m.links[:0]
+	if p := m.page(); p != "todos" && p != "note" {
+		return
+	}
+	for r, l := range body {
+		plain := ansi.Strip(l)
+		for _, s := range paths.Find(plain) {
+			if r == m.editY-m.bodyY || !paths.Exists(s.Path) {
+				continue
+			}
+			x := ansi.StringWidth(plain[:s.Start])
+			m.links = append(m.links, linkZone{m.bodyY + r, x, x + ansi.StringWidth(s.Path), s.Path})
+		}
+	}
 }
 
 // followPaths (gf): open the path in the todo under the cursor, or in the note being read,

@@ -99,6 +99,7 @@ func (m *model) mainView() string {
 		}
 		lines = append(lines, pad(l, m.w))
 	}
+	m.findLinks(body)
 	lines = append(lines, m.statusBar())
 	lines = append(lines, hints...)
 	return strings.Join(lines, "\n")

@@ -53,7 +53,7 @@ var keyTable = []keyHelp{
 	{"note", "Note", "j / k  ctrl+d / ctrl+u", "scroll", "scroll"},
 	{"note", "Note", "enter / e", "open it in your editor (where you've scrolled to)", "edit"},
 	{"note", "Note", "r / d", "rename / delete it", ""},
-	{"note", "Note", "gf", "open a path from the note in Files (a menu when there are more)", "open path"},
+	{"note", "Note", "gf", "open a path from the note in Files (a menu when there are more; or click one)", "open path"},
 	{"note", "Note", "h / esc", "back to the board", "back"},
 
 	{"todos", "Todos", "enter / space / x", "tick / untick (sub-todos follow, a parent ticks when all its are)", "tick"},
@@ -74,7 +74,7 @@ var keyTable = []keyHelp{
 	{"todos", "Todos", "A", "archive: move the done ones under ## Archive", "archive"},
 	{"todos", "Todos", "u / ctrl+r", "undo / redo", "undo"},
 	{"todos", "Todos", "E", "open the file in your editor on this line", ""},
-	{"todos", "Todos", "gf", "open the path in this todo in Files (paths on this PC are underlined)", "open path"},
+	{"todos", "Todos", "gf", "open the path in this todo in Files (or click it; paths on this PC are underlined)", "open path"},
 	{"todos", "Todos", "h / esc", "back to the board", "back"},
 
 	{"today", "Today", "x / space", "tick it (it's saved in its list)", "tick"},

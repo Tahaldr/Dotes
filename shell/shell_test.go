@@ -175,3 +175,30 @@ func TestLinks(t *testing.T) {
 		t.Fatalf("gf should open the path in Files:\n%s", o)
 	}
 }
+
+// a click on a path in a todo opens it in Files
+func TestLinkClick(t *testing.T) {
+	app.SaveParts([]string{"files", "notes"})
+	defer app.SaveParts([]string{"files"})
+	nb, proj := t.TempDir(), filepath.Join(t.TempDir(), "Proj")
+	os.MkdirAll(filepath.Join(proj, "src"), 0o755)
+	os.MkdirAll(nb+"/todos", 0o755)
+	p := filepath.ToSlash(proj) + "/src"
+	os.WriteFile(nb+"/todos/Work.md", []byte("# Work\n\n- [ ] look in "+p+" now\n"), 0o644)
+	m := New(Options{Start: "notes", FilesPath: t.TempDir(), Notebook: nb, Dump: true})
+	o := run(m, 110, 20, "enter")
+	y, x := -1, -1
+	for i, l := range strings.Split(o, "\n") {
+		if j := strings.Index(l, p); j >= 0 {
+			y, x = i, ansi.StringWidth(l[:j])+2
+		}
+	}
+	if y < 0 {
+		t.Fatalf("path not shown:\n%s", o)
+	}
+	_, cmd := m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	ui.Drain(m, cmd)
+	if o = run(m, 110, 20); !strings.Contains(o, "NOR") || !strings.Contains(o, "src") {
+		t.Fatalf("click should open Files at src:\n%s", o)
+	}
+}
