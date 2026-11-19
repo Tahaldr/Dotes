@@ -472,11 +472,7 @@ func (m *model) picked(p pickedMsg) tea.Cmd {
 		return nil
 	}
 	b, err := os.ReadFile(p.out)
-	if err != nil { // q in Files: go to its folder (Q: stay)
-		if d, err := os.ReadFile(p.cwdf); err == nil && isDir(strings.TrimSpace(string(d))) {
-			m.writeCwd(strings.TrimSpace(string(d)))
-			return tea.Quit
-		}
+	if err != nil { // q in the picker: back to Home (dotes h projects quits then)
 		return nil
 	}
 	idxS, target, _ := strings.Cut(string(b), "\t")
