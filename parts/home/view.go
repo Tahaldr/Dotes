@@ -90,37 +90,33 @@ func maxLen(apps []appItem, hint bool) int {
 
 // ---- cards ----
 
-const cardH = 5
+const cardH = 8
 
-// card: the icon, the name and its hint; the key sits in the bottom edge
+// card: TermNook's tall card: the icon, the name and its key, in a box
 func (m *model) card(a appItem, on bool, cw int) []string {
 	t := m.cfg.th
-	b, name, hint, key := fg(t.selBg), fg(t.txt), fg(t.mut), fg(t.mut)
+	b, kc := fg(t.selBg), fg(t.mut)
 	if on {
-		b, name, hint, key = fg(t.acc), fg(t.acc).Bold(true), fg(t.selHint), fg(t.acc).Bold(true)
+		b, kc = fg(t.acc), fg(t.selHint)
+	}
+	name := a.name
+	if width(name) > cw {
+		name = ui.Trunc(name, cw)
 	}
 	v := b.Render("│")
-	mid := func(s string, st lipgloss.Style) string { return v + st.Render(centerIn(ui.Trunc(s, cw-2), cw)) + v }
-	icon := a.icon
-	if icon == "" {
-		icon = "•"
-	}
-	bottom := b.Render("╰" + strings.Repeat("─", cw) + "╯")
-	if a.key != "" {
-		k := " " + a.key + " "
-		l := (cw - width(k)) / 2
-		bottom = b.Render("╰"+strings.Repeat("─", l)) + key.Render(k) + b.Render(strings.Repeat("─", cw-l-width(k))+"╯")
-	}
-	return []string{b.Render("╭" + strings.Repeat("─", cw) + "╮"), mid(icon, fg(t.acc)), mid(a.name, name), mid(a.hint, hint), bottom}
+	mid := func(s string, st lipgloss.Style) string { return v + st.Render(centerIn(s, cw)) + v }
+	hz := strings.Repeat("─", cw)
+	return []string{b.Render("╭" + hz + "╮"), mid("", fg(t.txt)), mid(a.icon, fg(t.acc)), mid("", fg(t.txt)),
+		mid(name, fg(t.txt)), mid(a.key, kc), mid("", fg(t.txt)), b.Render("╰" + hz + "╯")}
 }
 
 // grid: up to 5 cards a row, the rows evened out (7 → 4 + 3, 6 → 3 + 3)
 func (m *model) grid(w int) body {
-	n, gap := len(m.apps), 1
+	n, gap := len(m.apps), 2
 	if n == 0 {
 		return body{lines: []string{fg(m.cfg.th.mut).Render("no apps yet · add some in home.txt (dotes config)")}}
 	}
-	cw := min(16, max(10, max(maxLen(m.apps, false), maxLen(m.apps, true))+2))
+	cw := min(22, max(10, maxLen(m.apps, false)+2))
 	fit := max(1, (w-2+gap)/(cw+2+gap))
 	per := min(5, fit, n)
 	rows := (n + per - 1) / per
@@ -134,7 +130,7 @@ func (m *model) grid(w int) body {
 		end := min(n, s+per)
 		rowLines := make([]string, cardH)
 		for i := s; i < end; i++ {
-			c := m.card(m.apps[i], i == m.sel, cw)
+			c := m.card(m.apps[i], i == m.sel && !m.inPanels, cw)
 			for r := range rowLines {
 				if i > s {
 					rowLines[r] += strings.Repeat(" ", gap)
@@ -168,10 +164,14 @@ type panel struct {
 
 const panelRows = 3
 
-// panelBox: a quiet box, the title in its top edge and a badge on the right of it
-func (m *model) panelBox(p panel, w int) []string {
+// panelBox: a quiet box, the title in its top edge and a badge on the right of it. on = the
+// keyboard is on it (accent edge); line = its picked line (a bar on the left, -1 = none)
+func (m *model) panelBox(p panel, w int, on bool, line int) []string {
 	t := m.cfg.th
 	b := fg(t.selBg)
+	if on {
+		b = fg(t.acc)
+	}
 	inner := w - 2
 	ic := fg(t.acc) // the part's own color: the same as its name at the top
 	if p.part != "" {
@@ -191,7 +191,11 @@ func (m *model) panelBox(p panel, w int) []string {
 		if i < len(p.lines) {
 			l = p.lines[i]
 		}
-		out = append(out, b.Render("│")+" "+ui.Pad(l, inner-2)+" "+b.Render("│"))
+		left := b.Render("│")
+		if on && i == line {
+			left = fg(t.acc).Render("┃")
+		}
+		out = append(out, left+" "+ui.Pad(l, inner-2)+" "+b.Render("│"))
 	}
 	return append(out, b.Render("╰"+strings.Repeat("─", inner)+"╯"))
 }
@@ -318,6 +322,8 @@ func (m *model) glance(w int) body {
 	per = (n + rows - 1) / rows
 	pw := min(maxW, (w-2-(per-1)*gap)/per)
 	ps := m.panels(pw - 4)
+	m.shown = ps
+	m.psel = min(m.psel, len(ps)-1)
 	var b body
 	for s := 0; s < len(ps); s += per {
 		if s > 0 {
@@ -329,7 +335,7 @@ func (m *model) glance(w int) body {
 		lines := make([]string, panelRows+2)
 		y0 := len(b.lines)
 		for i := s; i < end; i++ {
-			box := m.panelBox(ps[i], pw)
+			box := m.panelBox(ps[i], pw, m.inPanels && i == m.psel, m.pline)
 			for r := range lines {
 				if i > s {
 					lines[r] += strings.Repeat(" ", gap)
@@ -409,9 +415,12 @@ func (m *model) dashboard() string {
 	cards := m.grid(w)
 	gl := m.glance(w)
 
-	help := "←→ move   enter open   q back to the prompt   x close tab   F1 keys"
+	help := "←→ move   enter open   space panels   q back to the prompt   x close tab   F1 keys"
 	if m.perRow < len(m.apps) {
-		help = "arrows move   enter open   q back to the prompt   x close tab   F1 keys"
+		help = "arrows move   enter open   space panels   q back to the prompt   x close tab   F1 keys"
+	}
+	if m.inPanels {
+		help = "tab next panel   ↑↓ pick a line   enter open   space apps   q back to the prompt   F1 keys"
 	}
 	if !m.hintsOn {
 		help = "F1 keys"
@@ -525,6 +534,7 @@ func (m *model) keysPage() string {
 	lines := []string{"", "  " + fg(t.acc).Render("Home keys"), "",
 		"  " + h("DASHBOARD"),
 		"    " + k("arrows") + mu(" / ") + k("tab") + mu(" move   ") + k("enter") + mu(" / click open   ") + k(strings.Join(keys, " ")) + mu(" open directly   ") + k("q") + mu(" / ") + k("esc") + mu(" back to the prompt"),
+		"    " + k("space") + mu(" to the panels and back (or ↓ past the last row)   in the panels: ") + k("tab") + mu(" / ") + k("←→") + mu(" next panel   ") + k("↑↓") + mu(" a line   ") + k("enter") + mu(" open it"),
 		"    " + k("x") + mu(" close the terminal tab   ") + k("alt+1-9") + mu(" / the names at the top: the other Dotes parts   ") + k("F1") + mu(" this page"),
 		"    " + mu("click a panel to open its part, a line in it to go right there (a repo, a project)"),
 		"",

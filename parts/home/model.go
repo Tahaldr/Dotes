@@ -51,12 +51,17 @@ type model struct {
 	inWindow    bool // the project picker opens in the Files part (dotes h projects: its own program)
 
 	// the glance at the other parts (only the picked ones)
-	on         map[string]bool
-	notesG     *notes.GlanceInfo
-	gitG       *git.GlanceInfo
-	recent     []string // recent projects
-	branch     string   // of the folder you're in
-	pzones     []pzone
+	on     map[string]bool
+	notesG *notes.GlanceInfo
+	gitG   *git.GlanceInfo
+	recent []string // recent projects
+	branch string   // of the folder you're in
+	pzones []pzone
+	shown  []panel // the panels on screen now (for the keys)
+
+	inPanels   bool // the keyboard is on the panels (space), not the cards
+	psel       int  // which panel
+	pline      int  // which line in it (-1 = the panel itself)
 	ticks      int
 	looking    bool // a glance is being gathered in the background
 	glanceDump bool // --dump: gather it at once (tests leave it off: no git, no zoxide)
@@ -301,6 +306,47 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// panelKey: the keyboard on the glance panels
+func (m *model) panelKey(s string) tea.Cmd {
+	n := len(m.shown)
+	if n == 0 {
+		m.inPanels = false
+		return nil
+	}
+	m.psel = min(m.psel, n-1)
+	p := m.shown[m.psel]
+	switch s {
+	case "tab", "right":
+		m.psel, m.pline = (m.psel+1)%n, -1
+	case "shift+tab", "left":
+		m.psel, m.pline = (m.psel+n-1)%n, -1
+	case "down":
+		if m.pline+1 < len(p.lines) {
+			m.pline++
+		}
+	case "up":
+		if m.pline < 0 {
+			m.inPanels = false // back up to the cards
+		} else {
+			m.pline--
+		}
+	case "space", "esc":
+		m.inPanels = false
+	case "enter":
+		if p.part == "" {
+			return nil
+		}
+		path := ""
+		if m.pline >= 0 && m.pline < len(p.rowPaths) {
+			path = p.rowPaths[m.pline]
+		}
+		return app.Open(p.part, path)
+	case "q":
+		return tea.Quit
+	}
+	return nil
+}
+
 func (m *model) setNote(s string, isErr bool) { m.note, m.noteErr = s, isErr }
 
 func (m *model) count() int { return len(m.apps) }
@@ -336,7 +382,16 @@ func (m *model) key(k tea.KeyPressMsg) tea.Cmd {
 	case "ctrl+c":
 		return tea.Quit
 	}
+	if m.inPanels {
+		return m.panelKey(s)
+	}
 	n := len(m.apps)
+	if s == "space" || (s == "down" && m.sel+m.perRow >= n && len(m.shown) > 0) { // to the panels
+		if len(m.shown) > 0 {
+			m.inPanels, m.pline = true, -1
+		}
+		return nil
+	}
 	rows := m.perRow > 0 && m.perRow < n // up / down jump a row of cards
 	switch s {
 	case "left", "shift+tab": // letters are app keys, so no h j k l here
@@ -357,8 +412,10 @@ func (m *model) key(k tea.KeyPressMsg) tea.Cmd {
 		} else {
 			m.move(1)
 		}
-	case "enter", "space":
-		return m.open(m.apps[m.sel])
+	case "enter":
+		if m.sel < len(m.apps) {
+			return m.open(m.apps[m.sel])
+		}
 	case "esc", "q":
 		return tea.Quit
 	default:

@@ -204,3 +204,23 @@ func TestImportTermNook(t *testing.T) {
 	os.Remove(configFile())
 	os.Remove(app.File("home-logo.txt"))
 }
+
+// space goes to the panels, tab to the next one, ↓ picks a line, enter opens it there
+func TestPanelKeys(t *testing.T) {
+	m := fresh(t)
+	m.notesG = &notes.GlanceInfo{Open: 1, Items: []notes.GlanceItem{{Text: "milk"}}}
+	m.gitG = &git.GlanceInfo{Repos: []git.GlanceRepo{{Name: "Shop", Dir: `C:\x\Shop`, Dirty: 2}}}
+	run(m, 130, 40, "space", "tab", "down")
+	if !m.inPanels || m.psel != 1 || m.pline != 0 {
+		t.Fatalf("in panels %v, panel %d, line %d", m.inPanels, m.psel, m.pline)
+	}
+	m.View()
+	cmd := m.key(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if sw, ok := cmd().(app.SwitchMsg); !ok || sw.ID != "git" || sw.Path != `C:\x\Shop` {
+		t.Fatalf("enter should open the repo in Git: %#v", cmd())
+	}
+	run(m, 130, 40, "space")
+	if m.inPanels {
+		t.Fatal("space should go back to the cards")
+	}
+}

@@ -17,7 +17,8 @@ type GlanceRepo struct {
 	Dirty, Ahead, Behind int
 }
 
-// GlanceInfo: repos with changes or commits to push / pull, and CI that's failing now.
+// GlanceInfo: your repos (the ones in your GitHub list: yours, your orgs', where you
+// collaborate) with changes or commits to push / pull, and CI that's failing now.
 type GlanceInfo struct {
 	Local   int // repos on this PC
 	Repos   []GlanceRepo
@@ -36,7 +37,10 @@ func Glance() GlanceInfo {
 	local := scanLocal(c.lookIn)
 	g := GlanceInfo{Local: len(local)}
 	for nwo, dir := range local {
-		r := byName[nwo]
+		r, yours := byName[nwo]
+		if !yours && len(byName) > 0 { // a clone of someone else's project (cliamp, ...): not yours to commit
+			continue
+		}
 		li := gitInfo(dir, r.Branch(), r.HeadOid())
 		if li.dirty+li.ahead+li.behind > 0 {
 			name := r.Name // as GitHub spells it
