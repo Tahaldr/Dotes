@@ -10,6 +10,7 @@ import (
 	"github.com/Tahaldr/dotes/internal/app"
 	"github.com/Tahaldr/dotes/internal/ui"
 	"github.com/Tahaldr/dotes/parts/files"
+	"github.com/Tahaldr/dotes/parts/notes"
 )
 
 // Maker builds a part the first time it's opened.
@@ -39,8 +40,9 @@ type Options struct {
 	Start     string // part id to open first ("" = the first picked)
 	Files     files.Options
 	FilesPath string
-	NoBar     bool // pick mode: just the part
-	Setup     bool // dotes setup: only the picker
+	Notebook  string // Notes: another notebook folder
+	NoBar     bool   // pick mode: just the part
+	Setup     bool   // dotes setup: only the picker
 	Dump      bool
 }
 
@@ -53,6 +55,10 @@ func New(o Options) *Model {
 			fo := o.Files
 			fo.Dump = o.Dump
 			return files.New(o.FilesPath, fo)
+		},
+		"notes": func() tea.Model {
+			notes.LoadConfig(o.Notebook)
+			return notes.New(notes.Options{Dump: o.Dump})
 		},
 	}
 	sh := app.LoadShared()
@@ -143,7 +149,9 @@ func (m *Model) switchTo(i int) tea.Cmd {
 		return nil
 	}
 	m.active = i
-	return m.open()
+	cmd := m.open()
+	// tell every part which one is on screen (Files hides its pictures when it isn't)
+	return tea.Batch(cmd, m.broadcast(app.ShownMsg{ID: m.parts[i].info.ID}))
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -291,7 +299,7 @@ func (m *Model) barView() string {
 func (m *Model) emptyView() string {
 	lines := []string{"", "  " + ui.FG(ui.Acc).Bold(true).Render("Nothing to show yet"), "",
 		"  " + ui.FG(ui.Txt).Render("The parts you picked come in a later Dotes version."),
-		"  " + ui.FG(ui.Mut).Render("Run  dotes setup  to pick Files, which is ready now.  q quits."),
+		"  " + ui.FG(ui.Mut).Render("Run  dotes setup  to pick a part that is ready now.  q quits."),
 	}
 	return strings.Join(lines, "\n")
 }

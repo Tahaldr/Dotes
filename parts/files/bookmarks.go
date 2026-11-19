@@ -17,6 +17,7 @@ import (
 func bookmarkFile() string { return app.File("files-bookmarks.txt") }
 
 func loadBookmarks() []string {
+	app.ImportOld("termfiles", "bookmarks.txt", "files-bookmarks.txt") // bookmarks from TermFiles
 	b, err := os.ReadFile(bookmarkFile())
 	if err != nil {
 		return nil

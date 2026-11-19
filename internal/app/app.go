@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const Version = "0.1.0"
+const Version = "0.2.0"
 
 // Parts, in tab order. Key is the short command (dotes f) and the alt+N order.
 type PartInfo struct {
@@ -19,7 +19,7 @@ type PartInfo struct {
 var Parts = []PartInfo{
 	{"home", "Home", "h", "dashboard, app launcher, projects, prayer times", false},
 	{"files", "Files", "f", "a yazi-style file manager", true},
-	{"notes", "Notes", "n", "todo lists and notes", false},
+	{"notes", "Notes", "n", "todo lists and notes", true},
 	{"git", "Git", "g", "GitHub and Git: repos, changes, PRs, issues, CI", false},
 }
 
@@ -151,3 +151,35 @@ func SetKV(path, def, key, value string) {
 	os.MkdirAll(filepath.Dir(path), 0o755)
 	os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644)
 }
+
+// ImportOld copies a settings file from the old standalone app (TermFiles, TermNotes, ...)
+// into the Dotes folder the first time, so nothing has to be set up again. Its "hints" line
+// is dropped (that switch lives in dotes.txt now). True = a file was copied.
+func ImportOld(oldApp, oldName, newName string) bool {
+	if os.Getenv("DOTES_CONFIG") != "" { // tests: never read the real old settings
+		return false
+	}
+	if _, err := os.Stat(File(newName)); err == nil {
+		return false
+	}
+	d, err := os.UserConfigDir()
+	if err != nil {
+		return false
+	}
+	b, err := os.ReadFile(filepath.Join(d, oldApp, oldName))
+	if err != nil {
+		return false
+	}
+	var keep []string
+	for _, l := range strings.Split(strings.ReplaceAll(string(b), "\r\n", "\n"), "\n") {
+		if k, _, ok := strings.Cut(strings.TrimSpace(l), "="); ok && strings.EqualFold(strings.TrimSpace(k), "hints") {
+			continue
+		}
+		keep = append(keep, l)
+	}
+	os.MkdirAll(Dir(), 0o755)
+	return os.WriteFile(File(newName), []byte(strings.Join(keep, "\n")), 0o644) == nil
+}
+
+// ShownMsg goes to every running part when the visible part changes (ID = the one shown now).
+type ShownMsg struct{ ID string }

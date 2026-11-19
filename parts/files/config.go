@@ -54,6 +54,9 @@ func configFile() string { return app.File("files.txt") }
 func loadConfig() config {
 	c := config{sortBy: "natural", lineMode: "size", images: "auto", hints: app.LoadShared().Hints}
 	b, err := os.ReadFile(configFile())
+	if err != nil && app.ImportOld("termfiles", "config.txt", "files.txt") { // settings from TermFiles
+		b, err = os.ReadFile(configFile())
+	}
 	if err != nil {
 		os.MkdirAll(filepath.Dir(configFile()), 0o755)
 		os.WriteFile(configFile(), []byte(defaultConfig), 0o644)

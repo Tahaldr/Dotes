@@ -9,6 +9,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/Tahaldr/dotes/internal/app"
 )
 
 type model struct {
@@ -93,8 +94,9 @@ type model struct {
 	gfxForced           bool // images = blocks in config.txt
 
 	// batch 5
-	pick pickArgs   // --pick: chosen from TermNook's nook -p
-	menu *menuState // open-with menu
+	pick   pickArgs   // --pick: chosen from TermNook's nook -p
+	hidden bool       // another Dotes part is on screen
+	menu   *menuState // open-with menu
 
 	// filled by View, used by the mouse
 	colX  [3][2]int // x start / end of parent, current, preview columns
@@ -315,6 +317,11 @@ func (m *model) previewCmd() tea.Cmd {
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.gfxMsg(msg) {
+		return m, m.imgSyncLater()
+	}
+	if s, ok := msg.(app.ShownMsg); ok {
+		m.hidden = s.ID != "files"
+		m.imgShown = imgSpot{} // the screen was redrawn: put the picture back when shown
 		return m, m.imgSyncLater()
 	}
 	switch msg.(type) {

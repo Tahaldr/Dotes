@@ -131,7 +131,7 @@ func (m *model) sixelFor(s imgSpot) string {
 
 // popupOpen: anything drawn over the preview hides the picture
 func (m *model) popupOpen() bool {
-	return m.help || m.prompt != nil || m.question != nil || m.showTasks || m.showMarks || m.spot != nil || m.menu != nil ||
+	return m.hidden || m.help || m.prompt != nil || m.question != nil || m.showTasks || m.showMarks || m.spot != nil || m.menu != nil ||
 		(m.pending != "" && m.hintsOn)
 }
 

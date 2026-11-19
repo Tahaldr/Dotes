@@ -14,7 +14,7 @@ config folder, one look, instant switching between parts.
 | 4 | Commands | `dotes` (Home, or the first picked part) · `dotes f` / `files` · `dotes n` / `notes` · `dotes g` / `git` · `dotes setup` · `dotes update` · `dotes config` |
 | 5 | Config | `%APPDATA%\dotes\` (`~/.config/dotes/` elsewhere): `dotes.txt` (shared: theme, hints, picked parts) + `home.txt`, `files.txt`, `notes.txt`, `git.txt` |
 | 6 | Switching | Top tab bar `Home │ Files │ Notes │ Git` (picked parts only), one key + click to switch. Removable if the user dislikes it |
-| 7 | Links between parts | Yes, after the merge works (batch 6), plus Notes **path mentions with suggestions** |
+| 7 | Links between parts | Yes, after the merge works (batch 5), plus Notes **path mentions with suggestions** |
 | 8 | Old apps | No migration needed (only the user's 2 PCs). Remove old apps, install Dotes |
 | 9 | Old repos | Make all 4 old Term repos private once Dotes ships (batch 6) |
 | 10 | Install | `install.ps1` (and `install.sh`) that asks which parts you want |
@@ -51,7 +51,7 @@ One batch at a time; next only when the user says.
    shared `internal/ui`, config folder + `dotes.txt`, first-run part picker / `dotes setup`.
    TermFiles moved in as the Files part (`dotes f`, `--pick`, `--cwd-file`, cd-on-quit
    shell function). Tests: first frame at every size for shell + Files.
-2. **Notes part.** TermNotes moved in (`dotes n`, `dotes n add/today/lists`), shared
+2. ✅ **Notes part** (v0.2.0). TermNotes moved in (`dotes n`, `dotes n add/today/lists`), shared
    overlay/which-key/hints with Files. Same Notebook files as the nvim popup.
 3. **Git part.** TermGit moved in (`dotes g`, all screens, `dotes g file.md` reader).
    Biggest batch (~17k lines). Keep TestFirstFrameEveryTab.

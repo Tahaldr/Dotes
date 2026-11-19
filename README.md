@@ -6,7 +6,7 @@ one settings folder, and you switch between them in the same window.
 | Part | What it is | Status |
 |---|---|---|
 | **Files** | a yazi-style file manager | ready |
-| **Notes** | todo lists and notes | coming |
+| **Notes** | todo lists and notes | ready |
 | **Git** | GitHub and Git: repos, changes, PRs, issues, CI | coming |
 | **Home** | dashboard, app launcher, projects, prayer times | coming |
 
@@ -18,6 +18,7 @@ your pick any time with `dotes setup`.
 ```
 dotes                 open your first part
 dotes f [folder]      Files
+dotes n               Notes  (dotes n add "buy milk" -d fri, dotes n today, dotes n lists)
 dotes setup           pick your parts
 dotes config          open the settings (dotes.txt)
 dotes update          get the newest version
@@ -32,6 +33,9 @@ the part you're in.
 
 - `dotes.txt`: shared settings (your parts, key hints, the top bar)
 - `files.txt`: Files settings (and `files-bookmarks.txt`)
+- `notes.txt`: Notes settings (your notebook folder, editor, inbox list)
+
+Coming from TermFiles or TermNotes? Their settings and bookmarks are copied over the first time.
 
 Every option is explained in the file itself. Updates never touch these files.
 

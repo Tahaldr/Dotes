@@ -13,7 +13,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/Tahaldr/dotes/internal/app"
+	"github.com/Tahaldr/dotes/internal/ui"
 	"github.com/Tahaldr/dotes/parts/files"
+	"github.com/Tahaldr/dotes/parts/notes"
 	"github.com/Tahaldr/dotes/shell"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -22,6 +24,7 @@ var usage = `Dotes ` + app.Version + ` - one terminal app with the parts you pic
 
   dotes                             open your first part (alt+1-9 or a click on the top bar switches)
 ` + files.Usage + `
+` + notes.Usage + `
   dotes setup                       pick the parts you want (the others stay hidden)
   dotes config                      open the settings folder's dotes.txt in your editor
   dotes update [--check]            get the newest version
@@ -60,7 +63,10 @@ func main() {
 		app.SelfUpdate(len(args) > 0 && args[0] == "--check")
 		return
 	case "config":
-		app.LoadShared() // makes dotes.txt if it's missing
+		if !app.HasShared() {
+			fmt.Println("Run  dotes  first: it asks which parts you want and makes the settings.")
+			return
+		}
 		openEditor(app.File("dotes.txt"))
 		return
 	case "setup":
@@ -91,11 +97,36 @@ func main() {
 				o.FilesPath = a
 			}
 		}
+	case "n", "notes":
+		o.Start = "notes"
+		if len(args) > 0 {
+			switch args[0] {
+			case "add", "today", "lists", "ls":
+				notes.LoadConfig("")
+				switch args[0] {
+				case "add":
+					notes.Add(args[1:])
+				case "today":
+					notes.Today()
+				default:
+					notes.Lists()
+				}
+				return
+			}
+		}
+		for i := 0; i < len(args); i++ {
+			if args[i] == "--notebook" && i+1 < len(args) {
+				o.Notebook = args[i+1]
+				i++
+			} else {
+				fail("unknown option " + args[i])
+			}
+		}
 	default:
 		for _, p := range app.Parts {
 			if cmd == p.ID || cmd == p.Short {
 				if !p.Ready {
-					fmt.Println(p.Name + " comes in a later Dotes version. Files is ready now:  dotes f")
+					fmt.Println(p.Name + " comes in a later Dotes version.")
 					return
 				}
 				o.Start = p.ID
@@ -148,7 +179,7 @@ func crashed(err error) {
 	os.Exit(1)
 }
 
-// dump: dotes --dump WxH [files|setup] [dir:PATH] keys...  prints one screen without a terminal
+// dump: dotes --dump WxH [files|notes|setup] [dir:PATH] [notebook:PATH] keys...  prints one screen without a terminal
 func dump(args []string) {
 	w, h := 120, 30
 	if len(args) > 0 {
@@ -161,7 +192,7 @@ func dump(args []string) {
 		}
 	}
 	o := shell.Options{FilesPath: ".", Dump: true}
-	if len(args) > 0 && (args[0] == "files" || args[0] == "setup") {
+	if len(args) > 0 && (args[0] == "files" || args[0] == "notes" || args[0] == "setup") {
 		if args[0] == "setup" {
 			o.Setup = true
 		} else {
@@ -173,12 +204,16 @@ func dump(args []string) {
 		o.FilesPath = args[0][4:]
 		args = args[1:]
 	}
+	if len(args) > 0 && strings.HasPrefix(args[0], "notebook:") {
+		o.Notebook = args[0][9:]
+		args = args[1:]
+	}
 	m := shell.New(o)
 	_, first := m.Update(tea.WindowSizeMsg{Width: w, Height: h})
-	files.Drain(m, tea.Batch(first, m.Init()))
+	ui.Drain(m, tea.Batch(first, m.Init()))
 	for _, a := range args {
 		m.View() // lay out so clicks land
-		files.Drain(m, func() tea.Msg { return files.ParseInput(a) })
+		ui.Drain(m, func() tea.Msg { return ui.ParseInput(a) })
 	}
 	out := m.View().Content
 	if os.Getenv("DOTES_RAW") == "" {
