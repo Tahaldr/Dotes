@@ -68,8 +68,11 @@ One batch at a time; next only when the user says.
    settings (TermGit config.txt, TermFiles/TermNotes settings, TermNook config.psd1,
    logo, prayer.json) into `%APPDATA%\dotes\`. Swap TermNook in the PowerShell profile
    for Dotes, remove the old apps (after the user approves), make the old Term repos private.
-7. **Design pass.** With the user: one style and layout across all parts (headers,
-   panels, lists, popups, hint bar). Muted onedark stays.
+7. **Design pass (one big batch at the end).** With the user: every part uses the same
+   approach and layout for every element. The user doesn't like how the Dotes top bar looks
+   and feels stacked above each part's own tabs (Files tabs, Notes Todo lists/Notes/Today,
+   Git tabs): redo the top bar and all in-part tabs as ONE tab system, then headers, panels,
+   lists, popups, status lines and the hint bar. Muted onedark stays.
 
 **After Dotes:** the private PC-config backup project (was "TermDots"), built for
 Dotes' final config layout.
