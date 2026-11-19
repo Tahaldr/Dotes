@@ -68,7 +68,7 @@ Every part has the **same first line**: its name and tabs on the left, and
 <table>
 <tr><td width="50%">
 
-### 󰋜 Home
+### 🏠 Home
 Your apps as cards (up to 5 a row) and a **glance at everything else**:
 what's due in Notes, repos with work to commit or push, failing CI, your recent projects
 and the next prayer times.
@@ -82,7 +82,7 @@ and the next prayer times.
 </td></tr>
 <tr><td>
 
-### 󰉋 Files
+### 📁 Files
 A [yazi](https://github.com/sxyazi/yazi)-style file manager: three columns, previews
 (code, Markdown, images, archives), tabs, bookmarks, fuzzy jumps, git marks, the
 Recycle Bin, bulk rename in your editor, and undo.
@@ -96,7 +96,7 @@ Recycle Bin, bulk rename in your editor, and undo.
 </td></tr>
 <tr><td>
 
-### 󰠮 Notes
+### 📝 Notes
 Todo lists and notes, as plain Markdown files you own. Due dates, priorities, sub-todos,
 a **Today** tab, and **paths that become links**: type `~/` in a todo and pick a file.
 
@@ -109,7 +109,7 @@ a **Today** tab, and **paths that become links**: type `~/` in a todo and pick a
 </td></tr>
 <tr><td>
 
-###  Git
+### 🐙 Git
 GitHub and git in one place: your repos, **changes to stage line by line**, commits,
 branches, PRs with reviews, issues, CI runs and logs, notifications and a contribution graph.
 
