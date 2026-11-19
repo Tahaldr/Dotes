@@ -69,7 +69,7 @@ One batch at a time; next only when the user says.
    Notes reloads a list or note changed in Nvim or another window; Home refreshes projects,
    recent items and prayer times. Use file watching (fsnotify-style) where possible,
    light polling where not, and keep CPU low.
-7. **Ship.** `install.ps1` / `install.sh` with the part picker, release workflow
+7. ✅ **Ship** (v0.7.0 released: 6 builds, install.ps1 / install.sh, `dotes shell`, CI on 3 systems, profile swapped, old repos private; removing the old programs waits for the user). `install.ps1` / `install.sh` with the part picker, release workflow
    (6 builds on a `v*` tag pushed alone), `dotes update`, README. Move the user's own
    settings (TermGit config.txt, TermFiles/TermNotes settings, TermNook config.psd1,
    logo, prayer.json) into `%APPDATA%\dotes\`. Swap TermNook in the PowerShell profile

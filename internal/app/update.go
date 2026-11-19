@@ -117,7 +117,7 @@ func SelfUpdate(checkOnly bool) {
 	}
 	saveUpdateCheck(rel.Tag)
 	if !Newer(rel.Tag, Version) {
-		fmt.Printf("You have the newest Version (%s).\n", Version)
+		fmt.Printf("You have the newest version (%s).\n", Version)
 		return
 	}
 	fmt.Printf("Dotes %s is out (you have %s).\n  What's new: %s\n", strings.TrimPrefix(rel.Tag, "v"), Version, rel.URL)
