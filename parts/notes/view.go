@@ -184,7 +184,8 @@ func prioChip(p string) string {
 
 // paneTitle: the way back, then the big title with a line under it
 func paneTitle(crumb, icon string, col lipgloss.Style, title, under string) []string {
-	return []string{fg(cMut).Render("  ‹ " + crumb), "", "  " + col.Render(icon) + "  " + fg(cTxt).Bold(true).Render(title), "  " + under, ""}
+	_ = crumb // the line under the tabs says where you are (a click on it goes back)
+	return []string{"", "  " + col.Render(icon) + "  " + fg(cTxt).Bold(true).Render(title), "  " + under, ""}
 }
 
 // center: the left margin that centers a column of w in total

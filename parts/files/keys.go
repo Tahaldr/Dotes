@@ -91,7 +91,7 @@ var keyTable = []keyHelp{
 	{"Other", "w", "tasks: copies, moves and deletes with progress (x cancels one)", "tasks"},
 	{"Other", "F1 / ~", "this page (h here hides / shows the key hints)", "all keys"},
 	{"Other", "g c , m", "first key of a combo: a popup shows what can follow", ""},
-	{"Other", "q", "back to Home (opened with dotes f: quit, and the shell goes to this folder)", "back"},
+	{"Other", "q", "back to Home (opened with dotes f: quit, and the shell goes to this folder)", "home"},
 	{"Other", "Q", "quit and stay where you were", ""},
 }
 

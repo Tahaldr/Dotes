@@ -985,6 +985,10 @@ func (m *model) click(c tea.MouseClickMsg) tea.Cmd {
 	}
 	double := time.Since(m.lastClick) < 400*time.Millisecond && m.lastY == c.Y
 	m.lastClick, m.lastY = time.Now(), c.Y
+	if c.Y == 1 && m.focus == 1 { // where you are: back to the board
+		m.focus = 0
+		return nil
+	}
 	if c.Y == 0 { // the tabs in the header
 		for i, kind := range tabs {
 			if c.X >= m.tabX[i][0] && c.X < m.tabX[i][1] {

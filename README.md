@@ -5,7 +5,7 @@ one settings folder, and you switch between them in the same window.
 
 | Part | What it is | Status |
 |---|---|---|
-| **Home** | dashboard, app launcher, projects, prayer times | ready |
+| **Home** | your apps as cards, and a glance at the other parts: what's due, repos to commit or push, failing CI, recent projects, prayer times | ready |
 | **Files** | a yazi-style file manager | ready |
 | **Notes** | todo lists and notes | ready |
 | **Git** | GitHub and Git: repos, changes, PRs, issues, CI | ready |
@@ -47,8 +47,10 @@ dotes update          get the newest version
 dotes shell pwsh      the shell function for your profile (also bash, zsh)
 ```
 
-Inside: `alt+1`–`alt+9` (or a click on the top bar) switches parts, `~` shows every key of
-the part you're in.
+Inside, every part has the same first line: its name and tabs on the left, and
+`Home · Files · Notes · Git` on the right (click one, or `alt+1`–`alt+9`). `q` goes back to
+Home (a part you opened straight from the prompt, like `dotes f`, quits instead). `F1` shows
+every key of the part you're in.
 
 Everything is live: a file saved in Nvim, a commit or pull from another terminal, a list
 changed in another window shows at once, without refreshing.
@@ -64,11 +66,11 @@ The parts link to each other:
 
 `%APPDATA%\dotes\` on Windows, `~/.config/dotes/` elsewhere:
 
-- `dotes.txt`: shared settings (your parts, key hints, the top bar)
+- `dotes.txt`: shared settings (your parts, key hints, the part names on the first line)
 - `files.txt`: Files settings (and `files-bookmarks.txt`)
 - `notes.txt`: Notes settings (your notebook folder, editor, inbox list)
 - `git.txt`: Git settings (start tab, where to clone, editor, git tool)
-- `home.txt`: Home settings (apps, layout, logo, prayer times, project folders), e.g.
+- `home.txt`: Home settings (apps, logo, prayer times, project folders), e.g.
   `prayer = Casablanca | Morocco | 21` for prayer times with a countdown
 
 Coming from TermNook, TermFiles, TermNotes or TermGit? Their settings and bookmarks are copied over the first time.
@@ -77,7 +79,7 @@ Every option is explained in the file itself. Updates never touch these files.
 
 ## The shell function
 
-Quitting Files with `q` (or opening a project) can leave your shell in that folder, and `x`
+Quitting Files opened with `dotes f` (or opening a project) can leave your shell in that folder, and `x`
 on Home closes the terminal tab. That needs a small function in your shell; the installer
 adds it, or add the line yourself:
 

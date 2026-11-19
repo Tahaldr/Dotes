@@ -325,14 +325,14 @@ func TestBoardAndPages(t *testing.T) {
 		t.Fatal("the todo lists should be cards:\n" + out)
 	}
 	out = runDump(120, 30, []string{"enter"})
-	if !strings.Contains(out, "‹ Todo lists") || !strings.Contains(out, "THIS TODO") {
+	if !strings.Contains(out, "› Groceries") || !strings.Contains(out, "THIS TODO") {
 		t.Fatal("enter should open the list with its details:\n" + out)
 	}
 	if out = runDump(120, 30, []string{"enter", "esc"}); !strings.Contains(out, "BOARD") {
 		t.Fatal("esc should go back to the board:\n" + out)
 	}
 	out = runDump(120, 30, []string{"2", "enter"})
-	if !strings.Contains(out, "‹ Notes") || !strings.Contains(out, "hello there") {
+	if !strings.Contains(out, "› Ideas") || !strings.Contains(out, "hello there") {
 		t.Fatal("enter on a note card should show the note:\n" + out)
 	}
 	if out = runDump(120, 30, []string{"l", "enter"}); !strings.Contains(out, "New todo list") || !strings.Contains(out, "a title") {

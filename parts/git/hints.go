@@ -121,7 +121,7 @@ func (m *model) allHints() []hint {
 			h = append(h, hint{"c", "clone"})
 		}
 		h = append(h, hint{"N", "new repo"}, hint{"R", "rename"}, hint{"E", "describe"}, hint{"V", "visibility"}, hint{"A", "archive"}, hint{"D", "delete"},
-			hint{"s", "star"}, hint{"F", "fork"}, hint{"o", "browser"}, hint{"y", "copy link"}, hint{"r", "refresh"}, hint{"1-7", "tabs"}, hint{"q", "back"})
+			hint{"s", "star"}, hint{"F", "fork"}, hint{"o", "browser"}, hint{"y", "copy link"}, hint{"r", "refresh"}, hint{"1-7", "tabs"}, hint{"q", "home"})
 	}
 	return append(h, hint{"ctrl+p", "commands"}, hint{"F1", "all keys"})
 }
@@ -260,7 +260,7 @@ func (m *model) runHints() []hint {
 	return append(h, hint{"w", "start a workflow"}, hint{"o", "browser"}, hint{"r", "refresh"})
 }
 
-const hintSep = "  ·  "
+const hintSep = "   " // like Files and Notes
 
 // wrapHints splits the hints into at most 2 lines that fit; "F1" always stays visible
 func wrapHints(h []hint, w int) [][]hint {
@@ -340,9 +340,18 @@ func (m *model) hintLines(y0 int) []string {
 				m.addZone(start, y, width(plain)-1, y, "hint-pal", 0)
 			}
 		}
-		out = append(out, trunc(" "+hints(line), m.w))
+		out = append(out, trunc(" "+barHints(line), m.w))
 	}
 	return out
+}
+
+// barHints: the bottom hint line, drawn like Files' and Notes' (key, what it does, 3 spaces)
+func barHints(list [][2]string) string {
+	var parts []string
+	for _, h := range list {
+		parts = append(parts, fg(cHint).Render(h[0])+" "+fg(cMut).Render(h[1]))
+	}
+	return strings.Join(parts, hintSep)
 }
 
 // H: hide / show the common key hints (remembered between runs)

@@ -92,7 +92,7 @@ var keyTable = []keyHelp{
 
 	{"", "Other", "F1 / ~", "this page (h here hides / shows the key hints)", "all keys"},
 	{"", "Other", "g d y c", "first key of a combo: a popup shows what can follow", ""},
-	{"", "Other", "q", "back to Home (opened with dotes n: quit; everything is saved as you go)", "back"},
+	{"", "Other", "q", "back to Home (opened with dotes n: quit; everything is saved as you go)", "home"},
 }
 
 // hintKey is the short key shown in the bar: "j/k" from "j / k  ↓ / ↑"

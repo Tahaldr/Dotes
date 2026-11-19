@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const Version = "0.8.2"
+const Version = "0.9.0"
 
 // Parts, in tab order. Key is the short command (dotes f) and the alt+N order.
 type PartInfo struct {
@@ -46,10 +46,10 @@ const sharedDefault = `# Dotes settings: key = value. Lines starting with # are 
 # parts you use, in any order: home, files, notes, git  (dotes setup changes them)
 parts = files
 
-# key hints at the bottom of every part: on / off (h on the ~ page switches)
+# key hints at the bottom of every part: on / off (h on the F1 page switches)
 hints = on
 
-# the bar at the top that switches between parts: on / off
+# the part names on the right of the first line (Home · Files · Notes · Git): on / off
 tabbar = on
 `
 
