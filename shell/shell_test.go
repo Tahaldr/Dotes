@@ -145,16 +145,16 @@ func TestHomeSwitchesParts(t *testing.T) {
 	if m.cur().info.ID != "home" {
 		t.Fatalf("dotes opens Home first, got %s", m.cur().info.ID)
 	}
-	run(m, 110, 30, "f") // the Files app on Home
+	run(m, 110, 30, "alt+2") // Files, from the names at the top
 	if m.cur().info.ID != "files" {
-		t.Fatalf("f on Home should show Files, got %s", m.cur().info.ID)
+		t.Fatalf("alt+2 on Home should show Files, got %s", m.cur().info.ID)
 	}
 	run(m, 110, 30, "q") // q in a part: back to Home, not out of Dotes
 	if m.cur().info.ID != "home" {
 		t.Fatalf("q in Files should go back to Home, got %s", m.cur().info.ID)
 	}
-	if o := run(m, 110, 30); strings.Contains(o, "Notes") || strings.Contains(o, "Files · ") {
-		t.Fatalf("Home: no Notes app (not picked) and no switcher:\n%s", o)
+	if o := run(m, 110, 30); strings.Contains(o, "Notes") || !strings.Contains(o, "Home · Files") {
+		t.Fatalf("Home: the switcher with the picked parts, nothing about Notes (not picked):\n%s", o)
 	}
 	app.SaveParts([]string{"files"})
 }

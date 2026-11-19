@@ -51,6 +51,7 @@ type Options struct {
 	NoBar     bool        // pick mode: just the part
 	Setup     bool        // dotes setup: only the picker
 	Dump      bool
+	Glance    bool // --dump: Home gathers its glance at once
 }
 
 // New makes the shell. The first time (no dotes.txt) it opens the part picker first.
@@ -58,7 +59,8 @@ func New(o Options) *Model {
 	m := &Model{dump: o.Dump, only: o.Setup, start: o.Start, cwdFile: o.Files.CwdFile}
 	m.makers = map[string]Maker{
 		"home": func() tea.Model {
-			return home.New(home.Options{CwdFile: o.Files.CwdFile, Projects: o.Projects, Dump: o.Dump})
+			notes.LoadConfig(o.Notebook) // Home glances at your todos
+			return home.New(home.Options{CwdFile: o.Files.CwdFile, Projects: o.Projects, Dump: o.Dump, Glance: o.Glance})
 		},
 		"files": func() tea.Model {
 			files.LoadConfig()
@@ -118,11 +120,10 @@ func (m *Model) loadParts(picked []string, start string) {
 // added above them
 func (m *Model) barH() int { return 0 }
 
-// switcherOn: the other parts are shown at the right of the part's tab row (not on Home,
-// which is the place you pick from; not with one part)
+// switcherOn: the parts are shown at the right of every part's tab row (not with one part)
 func (m *Model) switcherOn() bool {
 	p := m.cur()
-	return m.bar && m.setup == nil && len(m.parts) > 1 && p != nil && p.info.ID != "home"
+	return m.bar && m.setup == nil && len(m.parts) > 1 && p != nil
 }
 
 func (m *Model) switchItems() []ui.SwitchItem {

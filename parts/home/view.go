@@ -1,23 +1,48 @@
 package home
 
-// The four layouts (cards, info, palette, list), the themes popup and the keys page.
-// Everything is centered like TermNook's dashboard.
+// The dashboard: the Dotes tab row and where you are, the logo when there's room, your apps
+// as cards (rows of up to 5, evened out), and a glance at the other parts: what's due in
+// Notes, which repos need you in Git, your recent projects in Files, and prayer times.
+//
+//	 󰋜 Home                                Thu 19 Nov · 16:40      Home · Files · Notes · Git
+//	 󰉋 ~\Documents\Coding\Dotes   master
+//
+//	          ╭──────────╮ ╭──────────╮ ╭──────────╮ ╭──────────╮
+//	          │    󰕰     │ │         │ │    󰦔     │ │    󰨞     │
+//	          │  Herdr   │ │   Nvim   │ │  Player  │ │ VS Code  │
+//	          │workspace │ │  editor  │ │  cliamp  │ │   code   │
+//	          ╰─── h ────╯ ╰─── n ────╯ ╰─── p ────╯ ╰─── v ────╯
+//
+//	╭─ 󰠮 Notes ──── 2 due ╮ ╭─  Git ── 1 failing ╮ ╭─ 󰉋 Projects ──╮ ╭─ 󰥔 Maghrib 1h 32m ╮
+//	│ ○ buy milk   today  │ │ ● Dotes  3 ↑1      │ │ Dotes         │ │ Fajr 05:34 …     │
+//	╰─────────────────────╯ ╰────────────────────╯ ╰───────────────╯ ╰──────────────────╯
 
 import (
 	"fmt"
 	"image/color"
+	"path/filepath"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/Tahaldr/dotes/internal/app"
 	"github.com/Tahaldr/dotes/internal/rtl"
 	"github.com/Tahaldr/dotes/internal/ui"
-	"github.com/charmbracelet/x/ansi"
 )
 
 func fg(c color.Color) lipgloss.Style { return ui.FG(c) }
 func width(s string) int              { return ui.Width(s) }
+
+const (
+	icHome    = "\U000F02DC" // 󰋜
+	icFolderO = "\U000F0770" // 󰝰
+	icBranch  = ""          //
+	icNotes   = "\U000F082E" // 󰠮
+	icGit     = ""          //
+	icProj    = "\U000F024B" // 󰉋
+	icSalat   = "\U000F0954" // 󰥔
+	icDot     = "●"
+	icTodo    = "\U000F0131" // 󰄱
+)
 
 // body: lines already centered in the window, zones with y relative to the first line
 type body struct {
@@ -63,44 +88,58 @@ func maxLen(apps []appItem, hint bool) int {
 	return n
 }
 
-// ---- cards: boxes side by side, wrapping into more rows when needed ----
+// ---- cards ----
 
+const cardH = 5
+
+// card: the icon, the name and its hint; the key sits in the bottom edge
 func (m *model) card(a appItem, on bool, cw int) []string {
 	t := m.cfg.th
-	b, kc := fg(t.selBg), fg(t.mut)
+	b, name, hint, key := fg(t.selBg), fg(t.txt), fg(t.mut), fg(t.mut)
 	if on {
-		b, kc = fg(t.acc), fg(t.selHint)
-	}
-	name := a.name
-	if width(name) > cw {
-		name = ansi.Truncate(name, cw, "…")
+		b, name, hint, key = fg(t.acc), fg(t.acc).Bold(true), fg(t.selHint), fg(t.acc).Bold(true)
 	}
 	v := b.Render("│")
-	mid := func(s string, st lipgloss.Style) string { return v + st.Render(centerIn(s, cw)) + v }
-	hz := strings.Repeat("─", cw)
-	return []string{b.Render("╭" + hz + "╮"), mid("", fg(t.txt)), mid(a.icon, fg(t.acc)), mid("", fg(t.txt)),
-		mid(name, fg(t.txt)), mid(a.key, kc), mid("", fg(t.txt)), b.Render("╰" + hz + "╯")}
+	mid := func(s string, st lipgloss.Style) string { return v + st.Render(centerIn(ui.Trunc(s, cw-2), cw)) + v }
+	icon := a.icon
+	if icon == "" {
+		icon = "•"
+	}
+	bottom := b.Render("╰" + strings.Repeat("─", cw) + "╯")
+	if a.key != "" {
+		k := " " + a.key + " "
+		l := (cw - width(k)) / 2
+		bottom = b.Render("╰"+strings.Repeat("─", l)) + key.Render(k) + b.Render(strings.Repeat("─", cw-l-width(k))+"╯")
+	}
+	return []string{b.Render("╭" + strings.Repeat("─", cw) + "╮"), mid(icon, fg(t.acc)), mid(a.name, name), mid(a.hint, hint), bottom}
 }
 
-func (m *model) cards(w int) body {
-	n, gap := len(m.apps), 2
-	cw := min(22, max(10, maxLen(m.apps, false)+2))
-	per := max(1, (w-2+gap)/(cw+2+gap))
+// grid: up to 5 cards a row, the rows evened out (7 → 4 + 3, 6 → 3 + 3)
+func (m *model) grid(w int) body {
+	n, gap := len(m.apps), 1
+	if n == 0 {
+		return body{lines: []string{fg(m.cfg.th.mut).Render("no apps yet · add some in home.txt (dotes config)")}}
+	}
+	cw := min(16, max(10, max(maxLen(m.apps, false), maxLen(m.apps, true))+2))
+	fit := max(1, (w-2+gap)/(cw+2+gap))
+	per := min(5, fit, n)
+	rows := (n + per - 1) / per
+	per = (n + rows - 1) / rows
 	m.perRow = per
 	var b body
 	for s := 0; s < n; s += per {
 		if s > 0 {
 			b.lines = append(b.lines, "")
 		}
-		rows := make([]string, 8)
 		end := min(n, s+per)
+		rowLines := make([]string, cardH)
 		for i := s; i < end; i++ {
 			c := m.card(m.apps[i], i == m.sel, cw)
-			for r := range rows {
+			for r := range rowLines {
 				if i > s {
-					rows[r] += strings.Repeat(" ", gap)
+					rowLines[r] += strings.Repeat(" ", gap)
 				}
-				rows[r] += c[r]
+				rowLines[r] += c[r]
 			}
 		}
 		rowW := (end-s)*(cw+2) + (end-s-1)*gap
@@ -108,267 +147,202 @@ func (m *model) cards(w int) body {
 		y0 := len(b.lines)
 		for i := s; i < end; i++ {
 			x := p + (i-s)*(cw+2+gap)
-			b.zones = append(b.zones, zone{x, x + cw + 1, y0, y0 + 7, i})
+			b.zones = append(b.zones, zone{x, x + cw + 1, y0, y0 + cardH - 1, i})
 		}
-		for _, r := range rows {
+		for _, r := range rowLines {
 			b.lines = append(b.lines, strings.Repeat(" ", p)+r)
 		}
 	}
 	return b
 }
 
-// ---- info: the logo beside live info, apps as a wrapping bar of chips ----
+// ---- the glance panels ----
 
-func (m *model) chip(a appItem, on bool) ([]string, int) {
-	t := m.cfg.th
-	content := ""
-	if a.icon != "" {
-		content += fg(t.acc).Render(a.icon) + " "
-	}
-	content += fg(t.txt).Render(a.name)
-	if a.key != "" {
-		kc := t.mut
-		if on {
-			kc = t.selHint
-		}
-		content += " " + fg(kc).Render(a.key)
-	}
-	cw := width(content)
-	if on {
-		hz := strings.Repeat("─", cw+2)
-		b := fg(t.acc)
-		return []string{b.Render("╭" + hz + "╮"), b.Render("│") + " " + content + " " + b.Render("│"), b.Render("╰" + hz + "╯")}, cw + 4
-	}
-	sp := strings.Repeat(" ", cw+4)
-	return []string{sp, "  " + content + "  ", sp}, cw + 4
+type panel struct {
+	icon, title string
+	badge       string // right of the title (styled)
+	lines       []string
+	part, path  string   // a click goes there
+	rowPaths    []string // a click on a line opens that (same length as lines, "" = the panel's)
 }
 
-func (m *model) info(w int) body {
+const panelRows = 3
+
+// panelBox: a quiet box, the title in its top edge and a badge on the right of it
+func (m *model) panelBox(p panel, w int) []string {
 	t := m.cfg.th
-	type row struct{ k, v string }
-	rows := []row{{"time", m.now.Format("15:04")}, {"date", m.now.Format("Monday, Jan 2")}, {"folder", prettyPath(m.cwd)}}
-	if m.cfg.github != "" {
-		u := "https://github.com/" + m.cfg.github
-		rows = append(rows, row{"github", "\x1b]8;;" + u + "\x1b\\" + m.cfg.github + "\x1b]8;;\x1b\\"})
-	}
-	if br := gitBranch(m.cwd); br != "" {
-		rows = append(rows, row{"branch", " " + br})
-	}
-	rows = append(rows, row{"dotes", app.Version})
-	var info []string
-	for _, r := range rows {
-		info = append(info, fg(t.acc).Render(fmt.Sprintf("%-8s", r.k))+fg(t.txt).Render(r.v))
-	}
-	logo := m.logoLines()
-	gap := 5
-	logoW := blockW(logo)
-	var top []string
-	if len(logo) > 0 && w >= logoW+gap+blockW(info)+2 {
-		hgt := max(len(logo), len(info))
-		fi, fl := (hgt-len(info))/2, (hgt-len(logo))/2
-		for r := 0; r < hgt; r++ {
-			l, ri := "", ""
-			if j := r - fl; j >= 0 && j < len(logo) {
-				l = logo[j]
-			}
-			if j := r - fi; j >= 0 && j < len(info) {
-				ri = info[j]
-			}
-			top = append(top, ui.Pad(l, logoW)+strings.Repeat(" ", gap)+ri)
-		}
+	b := fg(t.selBg)
+	inner := w - 2
+	title := fg(t.acc).Render(p.icon) + " " + fg(t.txt).Bold(true).Render(p.title)
+	top := b.Render("╭─ ") + title + " "
+	if p.badge != "" {
+		fill := inner - 3 - width(title) - 1 - width(p.badge) - 2
+		top += b.Render(strings.Repeat("─", max(1, fill))) + " " + p.badge + " " + b.Render("─╮")
 	} else {
-		top = append(top, logo...)
-		if len(logo) > 0 {
-			top = append(top, "")
-		}
-		top = append(top, info...)
+		top += b.Render(strings.Repeat("─", max(0, inner-3-width(title)-1)) + "╮")
 	}
+	out := []string{ui.Trunc(top, w)}
+	for i := 0; i < panelRows; i++ {
+		l := ""
+		if i < len(p.lines) {
+			l = p.lines[i]
+		}
+		out = append(out, b.Render("│")+" "+ui.Pad(l, inner-2)+" "+b.Render("│"))
+	}
+	return append(out, b.Render("╰"+strings.Repeat("─", inner)+"╯"))
+}
+
+// spread2: left text, right text, on one line of w
+func spread2(l, r string, w int) string {
+	if r == "" {
+		return ui.Trunc(l, w)
+	}
+	l = ui.Trunc(l, max(1, w-width(r)-1))
+	return l + strings.Repeat(" ", max(1, w-width(l)-width(r))) + r
+}
+
+func (m *model) panels(iw int) []panel {
+	t := m.cfg.th
+	mu, tx := fg(t.mut), fg(t.txt)
+	var out []panel
+	if m.on["notes"] && m.notesG != nil {
+		g := m.notesG
+		p := panel{icon: icNotes, title: "Notes", part: "notes"}
+		switch {
+		case g.Late > 0:
+			p.badge = fg(ui.Red).Render(fmt.Sprintf("%d late", g.Late))
+		case g.Today > 0:
+			p.badge = fg(ui.Yellow).Render(fmt.Sprintf("%d today", g.Today))
+		case g.Open > 0:
+			p.badge = mu.Render(fmt.Sprintf("%d open", g.Open))
+		}
+		for _, it := range g.Items {
+			when := ""
+			if it.When != "" {
+				when = it.WhenStyle.Render(it.When)
+			}
+			p.lines = append(p.lines, spread2(fg(t.mut).Render(icTodo)+" "+tx.Render(it.Text), when, iw))
+		}
+		if len(p.lines) == 0 {
+			p.lines = []string{mu.Render("nothing to do"), mu.Render(fmt.Sprintf("%d lists · %d notes", g.Lists, g.Notes))}
+		} else if g.NothingDue && len(p.lines) < panelRows {
+			p.lines = append(p.lines, mu.Render("nothing due · from "+g.Items[0].List))
+		}
+		out = append(out, p)
+	}
+	if m.on["git"] && m.gitG != nil {
+		g := m.gitG
+		p := panel{icon: icGit, title: "Git", part: "git"}
+		if n := len(g.Failing); n > 0 {
+			p.badge = fg(ui.Red).Render(fmt.Sprintf("✗ %d failing", n))
+		} else if n := len(g.Repos); n > 0 {
+			p.badge = fg(ui.Orange).Render(fmt.Sprintf("%d to do", n))
+		} else {
+			p.badge = fg(ui.Green).Render("✓ clean")
+		}
+		for _, f := range g.Failing {
+			if len(p.lines) >= 1 && len(g.Repos) > 0 {
+				break // one failing run, the rest for the repos
+			}
+			p.lines = append(p.lines, fg(ui.Red).Render("✗ ")+tx.Render(f))
+			p.rowPaths = append(p.rowPaths, "")
+		}
+		for _, r := range g.Repos {
+			if len(p.lines) >= panelRows {
+				break
+			}
+			var st []string
+			if r.Dirty > 0 {
+				st = append(st, fg(ui.Orange).Render(fmt.Sprintf("●%d", r.Dirty)))
+			}
+			if r.Ahead > 0 {
+				st = append(st, fg(ui.Green).Render(fmt.Sprintf("↑%d", r.Ahead)))
+			}
+			if r.Behind > 0 {
+				st = append(st, fg(ui.Cyan).Render(fmt.Sprintf("↓%d", r.Behind)))
+			}
+			p.lines = append(p.lines, spread2(tx.Render(r.Name), strings.Join(st, " "), iw))
+			p.rowPaths = append(p.rowPaths, r.Dir)
+		}
+		if len(p.lines) == 0 {
+			p.lines = []string{mu.Render("nothing to commit or push"), mu.Render(fmt.Sprintf("%d repos on this PC", g.Local))}
+		}
+		out = append(out, p)
+	}
+	if m.on["files"] && len(m.recent) > 0 {
+		p := panel{icon: icProj, title: "Projects", part: "files", badge: mu.Render("recent")}
+		for _, d := range m.recent {
+			if len(p.lines) >= panelRows {
+				break
+			}
+			name := filepath.Base(d)
+			p.lines = append(p.lines, spread2(tx.Render(name), mu.Render(ui.Trunc(filepath.Base(filepath.Dir(d)), iw/2)), iw))
+			p.rowPaths = append(p.rowPaths, d)
+		}
+		out = append(out, p)
+	}
+	if st := m.prayer.state(m.now); m.cfg.prayer != nil && st != nil {
+		// the next three prayers, the next one bright; the countdown on the edge
+		p := panel{icon: icSalat, title: "Salat", badge: fg(t.acc).Render("in " + st.in)}
+		next := st.next
+		if next < 0 {
+			next = 0 // after Isha: tomorrow's Fajr
+		}
+		for k := 0; k < panelRows; k++ {
+			i := (next + k) % len(prayerNames)
+			name, at := prayerNames[i], st.at[i].Format("15:04")
+			if k == 0 {
+				p.lines = append(p.lines, spread2(fg(t.acc).Bold(true).Render(icDot+" "+name), fg(t.acc).Bold(true).Render(at), iw))
+			} else {
+				p.lines = append(p.lines, spread2(mu.Render("  "+name), mu.Render(at), iw))
+			}
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+// glance lays the panels out in rows that fit (each panel 26 to 40 wide)
+func (m *model) glance(w int) body {
+	n := len(m.panels(30))
+	if n == 0 {
+		return body{}
+	}
+	const gap, minW, maxW = 1, 26, 40
+	per := max(1, min(n, (w-2+gap)/(minW+gap)))
+	rows := (n + per - 1) / per
+	per = (n + rows - 1) / rows
+	pw := min(maxW, (w-2-(per-1)*gap)/per)
+	ps := m.panels(pw - 4)
 	var b body
-	tl, _ := centerBlock(top, w)
-	b.lines = append(b.lines, tl...)
-	// chips, wrapped into rows that fit, each row centered on its own
-	type chipT struct {
-		lines []string
-		w     int
-	}
-	var chipRows [][]chipT
-	var cur []chipT
-	cw := 0
-	for i, a := range m.apps {
-		l, ww := m.chip(a, i == m.sel)
-		if len(cur) > 0 && cw+1+ww > w-2 {
-			chipRows, cur, cw = append(chipRows, cur), nil, 0
+	for s := 0; s < len(ps); s += per {
+		if s > 0 {
+			b.lines = append(b.lines, "")
 		}
-		if len(cur) > 0 {
-			cw++
-		}
-		cw += ww
-		cur = append(cur, chipT{l, ww})
-	}
-	if len(cur) > 0 {
-		chipRows = append(chipRows, cur)
-	}
-	barW := 0
-	var bar []string
-	var zones []zone
-	idx := 0
-	for _, r := range chipRows {
-		rw := -1
-		for _, c := range r {
-			rw += c.w + 1
-		}
-		barW = max(barW, rw)
-		p := center(rw, w)
-		y0 := len(bar)
-		x := p
-		for _, c := range r {
-			zones = append(zones, zone{x, x + c.w - 1, y0, y0 + 2, idx})
-			x += c.w + 1
-			idx++
-		}
-		for k := 0; k < 3; k++ {
-			var parts []string
-			for _, c := range r {
-				parts = append(parts, c.lines[k])
+		end := min(len(ps), s+per)
+		rowW := (end-s)*pw + (end-s-1)*gap
+		x0 := center(rowW, w)
+		lines := make([]string, panelRows+2)
+		y0 := len(b.lines)
+		for i := s; i < end; i++ {
+			box := m.panelBox(ps[i], pw)
+			for r := range lines {
+				if i > s {
+					lines[r] += strings.Repeat(" ", gap)
+				}
+				lines[r] += box[r]
 			}
-			bar = append(bar, strings.Repeat(" ", p)+strings.Join(parts, " "))
-		}
-	}
-	dw := min(w-2, max(blockW(top), barW))
-	b.lines = append(b.lines, "", strings.Repeat(" ", center(dw, w))+fg(t.selBg).Render(strings.Repeat("─", max(0, dw))))
-	off := len(b.lines)
-	for _, z := range zones {
-		z.y0, z.y1 = z.y0+off, z.y1+off
-		b.zones = append(b.zones, z)
-	}
-	b.lines = append(b.lines, bar...)
-	return b
-}
-
-// ---- palette: type to filter, the selected row gets a border ----
-
-func (m *model) match() {
-	f := strings.ToLower(m.filter)
-	type hit struct{ i, pos int }
-	var hits []hit
-	for i, a := range m.apps {
-		if f == "" || strings.Contains(strings.ToLower(a.name+" "+a.hint), f) {
-			pos := strings.Index(strings.ToLower(a.name), f)
-			if pos < 0 {
-				pos = 99
+			x := x0 + (i-s)*(pw+gap)
+			m.pzones = append(m.pzones, pzone{zone: zone{x, x + pw - 1, y0, y0 + panelRows + 1, -1}, part: ps[i].part})
+			for r, rp := range ps[i].rowPaths {
+				if rp != "" {
+					m.pzones = append(m.pzones, pzone{zone: zone{x, x + pw - 1, y0 + 1 + r, y0 + 1 + r, -1}, part: ps[i].part, path: rp})
+				}
 			}
-			hits = append(hits, hit{i, pos})
 		}
-	}
-	for i := 1; i < len(hits); i++ { // best name match first, else config order
-		for j := i; j > 0 && (hits[j].pos < hits[j-1].pos); j-- {
-			hits[j], hits[j-1] = hits[j-1], hits[j]
+		for _, l := range lines {
+			b.lines = append(b.lines, strings.Repeat(" ", x0)+l)
 		}
-	}
-	m.found = m.found[:0]
-	for _, h := range hits {
-		m.found = append(m.found, h.i)
-	}
-	m.sel = min(m.sel, max(0, len(m.found)-1))
-}
-
-func (m *model) palette(w int) body {
-	t := m.cfg.th
-	m.match()
-	nameCol := max(14, maxLen(m.apps, false)+3)
-	hintCol := max(12, maxLen(m.apps, true)+2)
-	iw := 2 + 1 + 2 + nameCol + hintCol
-	var L []string
-	prompt := fg(t.gradTo).Render("❯ ")
-	if m.filter != "" {
-		prompt += fg(t.txt).Render(m.filter) + fg(t.acc).Render("▏")
-	} else {
-		prompt += fg(t.acc).Render("▏") + fg(t.mut).Render("type to search")
-	}
-	L = append(L, " "+prompt)
-	rule := fg(t.selBg).Render(strings.Repeat("─", iw+2))
-	L = append(L, rule)
-	type rz struct{ y0, y1, idx int }
-	var rzs []rz
-	used := 0
-	for p, ai := range m.found {
-		a := m.apps[ai]
-		on := p == m.sel
-		nm := a.name
-		name := fg(t.txt).Render(nm)
-		if at := strings.Index(strings.ToLower(nm), strings.ToLower(m.filter)); m.filter != "" && at >= 0 {
-			e := at + len(m.filter)
-			name = fg(t.txt).Render(nm[:at]) + fg(t.acc).Render(nm[at:e]) + fg(t.txt).Render(nm[e:])
-		}
-		hc := t.mut
-		if on {
-			hc = t.selHint
-		}
-		icon := a.icon
-		if icon == "" {
-			icon = " "
-		}
-		content := ui.Pad("  "+fg(t.acc).Render(icon)+"  "+name+strings.Repeat(" ", max(0, nameCol-width(nm)))+fg(hc).Render(a.hint), iw)
-		if on {
-			b := fg(t.acc)
-			rzs = append(rzs, rz{len(L), len(L) + 2, p})
-			L = append(L, b.Render("╭"+strings.Repeat("─", iw)+"╮"), b.Render("│")+content+b.Render("│"), b.Render("╰"+strings.Repeat("─", iw)+"╯"))
-			used += 3
-		} else {
-			rzs = append(rzs, rz{len(L), len(L), p})
-			L = append(L, " "+content+" ")
-			used++
-		}
-	}
-	if len(m.found) == 0 {
-		L = append(L, fg(t.mut).Render("  no match, esc to clear"))
-		used = 1
-	}
-	for i := used; i < len(m.apps)+2; i++ { // the same height while filtering
-		L = append(L, "")
-	}
-	L = append(L, rule)
-	cnt := fmt.Sprintf("%d/%d", len(m.found), len(m.apps))
-	L = append(L, strings.Repeat(" ", max(0, iw+2-len(cnt)))+fg(t.mut).Render(cnt))
-	lines, p := centerBlock(L, w)
-	b := body{lines: lines}
-	for _, r := range rzs {
-		b.zones = append(b.zones, zone{p, p + iw + 1, r.y0, r.y1, r.idx})
-	}
-	return b
-}
-
-// ---- list: the original vertical menu ----
-
-func (m *model) list(w int) body {
-	t := m.cfg.th
-	nameCol := max(16, maxLen(m.apps, false)+3)
-	hintCol := max(14, maxLen(m.apps, true)+3)
-	var L []string
-	for i, a := range m.apps {
-		icon, key := a.icon, a.key
-		if icon == "" {
-			icon = " "
-		}
-		if key == "" {
-			key = " "
-		}
-		name, hint := ui.Pad(a.name, nameCol), ui.Pad(a.hint, hintCol)
-		if i == m.sel {
-			bg := lipgloss.NewStyle().Background(t.selBg)
-			L = append(L, bg.Foreground(t.acc).Render("  "+icon+"  "+name)+bg.Foreground(t.selHint).Render(hint)+bg.Foreground(t.acc).Render(key+"  "))
-		} else {
-			L = append(L, fg(t.acc).Render("  "+icon+"  ")+fg(t.txt).Render(name)+fg(t.mut).Render(hint+key+"  "))
-		}
-		if i < len(m.apps)-1 {
-			L = append(L, "")
-		}
-	}
-	lines, p := centerBlock(L, w)
-	b := body{lines: lines}
-	bw := blockW(L)
-	for i := range m.apps {
-		b.zones = append(b.zones, zone{p, p + bw - 1, i * 2, i * 2, i})
 	}
 	return b
 }
@@ -412,54 +386,33 @@ func (m *model) View() tea.View {
 	return v
 }
 
+// header: the tab row and where you are (the same two lines as the other parts)
+func (m *model) header(w int) []string {
+	t := m.cfg.th
+	row, _ := ui.TabRow(icHome, "Home", nil, 0, fg(t.mut).Render(m.now.Format("Mon 2 Jan  ·  15:04")), w)
+	here := " " + fg(t.acc).Render(icFolderO) + "  " + fg(t.selHint).Render(prettyPath(m.cwd))
+	if m.branch != "" {
+		here += "   " + fg(ui.Purple).Render(icBranch+" "+m.branch)
+	}
+	return []string{row, ui.Pad(here, w)}
+}
+
 func (m *model) dashboard() string {
 	t := m.cfg.th
 	w, h := m.w, m.h
-	var b body
-	switch m.style {
-	case "cards":
-		b = m.cards(w)
-	case "info":
-		b = m.info(w)
-	case "palette":
-		b = m.palette(w)
-	default:
-		b = m.list(w)
+	m.pzones = m.pzones[:0]
+	head := m.header(w)
+	cards := m.grid(w)
+	gl := m.glance(w)
+
+	help := "←→ move   enter open   q back to the prompt   x close tab   F1 keys"
+	if m.perRow < len(m.apps) {
+		help = "arrows move   enter open   q back to the prompt   x close tab   F1 keys"
 	}
-	n := len(m.apps)
-	help := map[string]string{
-		"list":    "↑↓ move   enter open   q back to the prompt   x close tab",
-		"palette": "type to filter   ↑↓ move   enter open   esc clear / back   ctrl+x close tab",
-	}[m.style]
-	if help == "" {
-		help = "←→ move   enter open   q back to the prompt   x close tab"
-		if m.perRow < n {
-			help = "arrows move   enter open   q back to the prompt   x close tab"
-		}
+	if !m.hintsOn {
+		help = "F1 keys"
 	}
-	hot := "t themes"
-	if m.style == "palette" {
-		hot = "ctrl+t themes"
-	}
-	keysKey := "F1" // the keys page is F1 in every part
-	foot := []string{""}
-	date := m.now.Format("Monday, Jan 2  ·  15:04")
-	title := date
-	if m.style == "info" {
-		title = ""
-	}
-	if pb := m.prayerBox(w, title); pb != nil {
-		l, _ := centerBlock(pb, w)
-		foot = append(foot, l...)
-		foot = append(foot, "")
-	} else if m.style != "info" {
-		foot = append(foot, centerIn(fg(t.mut).Render(date), w))
-	}
-	hl := fg(t.mut).Render(keysKey + " keys")
-	if m.hintsOn {
-		hl = fg(t.mut).Render(help+"   ") + fg(t.hot).Render(hot) + fg(t.mut).Render("   "+keysKey+" keys")
-	}
-	foot = append(foot, centerIn(hl, w))
+	var foot []string
 	if m.note != "" {
 		c := t.mut
 		if m.noteErr {
@@ -474,65 +427,71 @@ func (m *model) dashboard() string {
 		}
 		foot = append(foot, centerIn(fg(ui.Red).Render(msg), w))
 	}
-	var head []string
-	if m.style != "info" && len(m.cfg.logo) > 0 && len(m.cfg.logo)+2+len(b.lines)+len(foot) <= h {
-		head, _ = centerBlock(m.logoLines(), w)
-		head = append(head, "", "")
+	foot = append(foot, centerIn(hintLine(help, t), w))
+
+	room := h - len(head) - len(foot)
+	// what fits, most important first: the cards, then the glance, then the logo
+	type placed struct {
+		lines  []string
+		zones  []zone
+		glance bool
 	}
-	all := append(append(append([]string{}, head...), b.lines...), foot...)
-	if len(all) > h {
-		all = all[:h]
+	var blocks []placed
+	used := len(cards.lines)
+	blocks = append(blocks, placed{cards.lines, cards.zones, false})
+	if len(gl.lines) > 0 && used+2+len(gl.lines) <= room {
+		blocks = append(blocks, placed{gl.lines, nil, true})
+		used += 2 + len(gl.lines)
+	} else {
+		m.pzones = m.pzones[:0]
 	}
-	top := max(0, (h-len(all))/2)
+	if logo := m.logoLines(); len(logo) > 0 && used+2+len(logo) <= room-2 {
+		l, _ := centerBlock(logo, w)
+		blocks = append([]placed{{l, nil, false}}, blocks...)
+		used += 2 + len(logo)
+	}
+	top := len(head) + max(0, (room-used)/2)
+	screen := make([]string, 0, h)
+	screen = append(screen, head...)
+	for len(screen) < top {
+		screen = append(screen, "")
+	}
 	m.zones = m.zones[:0]
-	for _, z := range b.zones {
-		z.y0, z.y1 = z.y0+top+len(head), z.y1+top+len(head)
-		m.zones = append(m.zones, z)
-	}
-	screen := make([]string, h)
-	for i := range screen {
-		if j := i - top; j >= 0 && j < len(all) {
-			screen[i] = ui.Pad(all[j], w)
-		} else {
-			screen[i] = strings.Repeat(" ", w)
+	for i, bl := range blocks {
+		if i > 0 {
+			screen = append(screen, "", "")
 		}
+		y := len(screen)
+		for _, z := range bl.zones {
+			z.y0, z.y1 = z.y0+y, z.y1+y
+			m.zones = append(m.zones, z)
+		}
+		if bl.glance {
+			for k := range m.pzones {
+				m.pzones[k].y0 += y
+				m.pzones[k].y1 += y
+			}
+		}
+		screen = append(screen, bl.lines...)
 	}
-	if m.popup {
-		m.themesPopup(screen)
+	for len(screen) < h-len(foot) {
+		screen = append(screen, "")
 	}
-	return strings.Join(screen, "\n")
+	screen = append(screen[:min(len(screen), h-len(foot))], foot...)
+	for i := range screen {
+		screen[i] = ui.Pad(screen[i], w)
+	}
+	return strings.Join(screen[:min(len(screen), h)], "\n")
 }
 
-// themesPopup draws the layout picker over the middle of the screen
-func (m *model) themesPopup(screen []string) {
-	t := m.cfg.th
-	iw := 34
-	hot := fg(t.hot)
-	v := hot.Render("│")
-	title := " themes "
-	box := []string{hot.Render("╭─" + title + strings.Repeat("─", iw-1-len(title)) + "╮"), v + strings.Repeat(" ", iw) + v}
-	for i, st := range styles {
-		label := fmt.Sprintf("%-20s", styleNames[st])
-		cur := ""
-		if st == m.style {
-			cur = "current"
-		}
-		row := "    " + fg(t.txt).Render(label)
-		if i == m.popSel {
-			row = "  " + fg(t.acc).Render("❯ "+label)
-		}
-		box = append(box, v+row+fg(t.mut).Render(fmt.Sprintf("%-*s", iw-24, cur))+v)
+// hintLine: "key what   key what" with the keys a bit brighter
+func hintLine(s string, t theme) string {
+	var out []string
+	for _, part := range strings.Split(s, "   ") {
+		k, d, _ := strings.Cut(part, " ")
+		out = append(out, fg(t.selHint).Render(k)+" "+fg(t.mut).Render(d))
 	}
-	box = append(box, v+strings.Repeat(" ", iw)+v, v+fg(t.mut).Render(fmt.Sprintf("%-*s", iw, "  ↑↓ move  enter apply  esc close"))+v,
-		hot.Render("╰"+strings.Repeat("─", iw)+"╯"))
-	y0 := max(0, (len(screen)-len(box))/2)
-	x0 := max(0, (m.w-iw-2)/2)
-	for i, l := range box {
-		if y := y0 + i; y < len(screen) {
-			s := screen[y]
-			screen[y] = ansi.Truncate(s, x0, "") + l + ansi.TruncateLeft(s, x0+iw+2, "")
-		}
-	}
+	return strings.Join(out, "   ")
 }
 
 func (m *model) keysPage() string {
@@ -562,14 +521,14 @@ func (m *model) keysPage() string {
 	lines := []string{"", "  " + fg(t.acc).Render("Home keys"), "",
 		"  " + h("DASHBOARD"),
 		"    " + k("arrows") + mu(" / ") + k("tab") + mu(" move   ") + k("enter") + mu(" / click open   ") + k(strings.Join(keys, " ")) + mu(" open directly   ") + k("q") + mu(" / ") + k("esc") + mu(" back to the prompt"),
-		"    " + fg(t.hot).Render("t") + mu(" themes   ") + fg(t.hot).Render("x") + mu(" close the terminal tab   (") + fg(t.hot).Render("ctrl+t") + mu(" / ") + fg(t.hot).Render("ctrl+x") + mu(" in the palette)"),
-		"    " + k("? ~ F1") + mu(" this page   ") + k("alt+1-9") + mu(" other Dotes parts"),
+		"    " + k("x") + mu(" close the terminal tab   ") + k("alt+1-9") + mu(" / the names at the top: the other Dotes parts   ") + k("F1") + mu(" this page"),
+		"    " + mu("click a panel to open its part, a line in it to go right there (a repo, a project)"),
 		"",
 		"  " + h("PROJECT PICKER") + mu("  (an app with  projects  as its command)"),
-		"    " + mu("Files opens on your recent projects:   ") + k("enter") + mu(" open in "+first+"   ") + strings.Join(alts, "   ") + "   " + k("l") + mu(" go in   ") + k("q") + mu(" back to the prompt in that folder"),
+		"    " + mu("Files opens on your recent projects:   ") + k("enter") + mu(" open in "+first+"   ") + strings.Join(alts, "   ") + "   " + k("l") + mu(" go in   ") + k("q") + mu(" back to Home"),
 		"",
 		"  " + mu("hint lines: ") + k(state),
-		"", "  " + fg(t.hot).Render("h") + mu(map[bool]string{true: " hide", false: " show"}[m.hintsOn]+" hint lines   any other key: back"),
+		"", "  " + k("h") + mu(map[bool]string{true: " hide", false: " show"}[m.hintsOn]+" hint lines   any other key: back"),
 	}
 	for i := range lines {
 		lines[i] = ui.Pad(lines[i], m.w)

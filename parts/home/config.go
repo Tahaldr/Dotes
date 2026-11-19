@@ -29,48 +29,21 @@ var partApps = map[string]appItem{
 	"git":   {name: "Git", hint: "github", key: "g", icon: "\U000F02A2", run: "dotes g"},
 }
 
-// withParts: the apps from home.txt, without the parts you didn't pick, and with the picked
-// parts that home.txt doesn't list added (before "back to the prompt")
+// withParts: the apps from home.txt without the Dotes parts (they're in the tab row and
+// the glance panels) and without the project picker when Files isn't picked
 func withParts(apps []appItem, picked []string) []appItem {
 	on := map[string]bool{}
 	for _, id := range picked {
 		on[id] = true
 	}
 	var out []appItem
-	have, keys := map[string]bool{}, map[string]bool{"t": true, "q": true, "x": true}
 	for _, a := range apps {
-		id := partOfRun(a.run)
-		if a.run == "projects" && !on["files"] { // the picker is Files'
+		if partOfRun(a.run) != "" || a.run == "projects" && !on["files"] {
 			continue
 		}
-		if id != "" && !on[id] {
-			continue
-		}
-		have[id] = true
-		for p, pa := range partApps { // "Files" that opens the project picker counts as Files
-			if strings.EqualFold(a.name, pa.name) {
-				have[p] = true
-			}
-		}
-		keys[a.key] = true
 		out = append(out, a)
 	}
-	at := len(out)
-	for at > 0 && out[at-1].run == "" {
-		at--
-	}
-	var add []appItem
-	for _, p := range []string{"files", "notes", "git"} {
-		if on[p] && !have[p] {
-			a := partApps[p]
-			if keys[a.key] {
-				a.key = ""
-			}
-			keys[a.key] = true
-			add = append(add, a)
-		}
-	}
-	return append(append(append([]appItem{}, out[:at]...), add...), out[at:]...)
+	return out
 }
 
 type prayerCfg struct {
@@ -97,14 +70,8 @@ type config struct {
 	warnings []string
 }
 
-var styles = []string{"cards", "info", "palette", "list"}
-var styleNames = map[string]string{"cards": "Card row", "info": "Info panel", "palette": "Command palette", "list": "Classic list"}
-
 const defaultConfig = `# Home settings (Dotes): key = value. Lines starting with # are ignored.
 # Changes apply the next time Home opens. Shared settings (hints, parts) are in dotes.txt.
-
-# layout: cards, info, palette or list (t inside switches and remembers it)
-style = cards
 
 # the logo: a text file in this folder (empty = none)
 logo = home-logo.txt
@@ -130,8 +97,8 @@ prayer =
 app = Nvim | editor | n | f36f | nvim .
 app = VS Code | code | v | f0a1e | code .
 app = Projects | pick one | p | f07b | projects
-# The Dotes parts you picked (Files, Notes, Git) show up by themselves; add a line with
-# dotes f / n / g to change their name, key or place.
+# The Dotes parts (Files, Notes, Git) are at the top of every screen, with a glance at
+# each one under your apps, so they aren't apps here.
 
 # project picker: folders searched for projects (with .git, package.json, go.mod, ...), ; between
 project_roots = ~/code ; ~/projects ; ~/source/repos ; ~/Documents/GitHub
@@ -170,12 +137,7 @@ func loadConfig() config {
 	for _, kv := range app.ReadPairs(configFile(), defaultConfig) {
 		k, v := kv[0], kv[1]
 		switch k {
-		case "style":
-			if styleNames[v] != "" {
-				c.style = v
-			} else {
-				c.warnings = append(c.warnings, "style '"+v+"' is unknown, using cards")
-			}
+		case "style": // the old layouts: Home has one now
 		case "logo":
 			logoName = v
 		case "github":
@@ -405,12 +367,6 @@ func importFrom(dir string) {
 	set := func(key, val string) {
 		re := regexp.MustCompile(`(?m)^` + key + ` =.*$`)
 		out = re.ReplaceAllLiteralString(out, key+" = "+val)
-	}
-	if v := get("Style"); v != "" {
-		set("style", v)
-	}
-	if st, err := os.ReadFile(filepath.Join(dir, "style.txt")); err == nil && styleNames[strings.TrimSpace(string(st))] != "" {
-		set("style", strings.TrimSpace(string(st)))
 	}
 	if v := get("GitHub"); v != "" {
 		set("github", v)

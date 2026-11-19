@@ -17,6 +17,7 @@ type Options struct {
 	CwdFile  string // where the folder to cd to goes (the shell function)
 	Projects bool   // open the project picker straight away (dotes h projects)
 	Dump     bool
+	Glance   bool // with Dump: look at git and recent projects too (dotes --dump)
 }
 
 const Usage = `  dotes h                           Home: dashboard, app launcher (also what plain  dotes  opens)
@@ -29,7 +30,7 @@ func New(o Options) tea.Model {
 	m := newModel()
 	m.cwdFile = o.CwdFile
 	if o.Dump {
-		m.dump = true
+		m.dump, m.glanceDump = true, o.Glance
 		return m
 	}
 	m.live = true

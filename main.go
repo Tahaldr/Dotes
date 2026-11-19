@@ -248,7 +248,7 @@ func dump(args []string) {
 			}
 		}
 	}
-	o := shell.Options{FilesPath: ".", Dump: true}
+	o := shell.Options{FilesPath: ".", Dump: true, Glance: true}
 	if len(args) > 0 && (args[0] == "home" || args[0] == "files" || args[0] == "notes" || args[0] == "git" || args[0] == "setup") {
 		if args[0] == "setup" {
 			o.Setup = true

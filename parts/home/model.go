@@ -14,23 +14,26 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/Tahaldr/dotes/internal/app"
+	"github.com/Tahaldr/dotes/parts/git"
+	"github.com/Tahaldr/dotes/parts/notes"
 )
 
 type zone struct {
 	x0, x1, y0, y1 int // screen cells, inclusive
-	idx            int // app index (palette: index into found)
+	idx            int // app index
+}
+
+// pzone: a glance panel (or one line of it) on screen
+type pzone struct {
+	zone
+	part, path string
 }
 
 type model struct {
 	cfg     config
 	apps    []appItem // in the order shown (recent first when recent = on)
-	style   string
 	sel     int
-	filter  string // palette
-	found   []int  // palette: indexes of apps that match
 	perRow  int
-	popup   bool // themes
-	popSel  int
 	help    bool
 	hintsOn bool
 	note    string
@@ -45,7 +48,69 @@ type model struct {
 	dump, live  bool
 	zones       []zone
 	watch       *watch.Watcher
-	inWindow    bool // the project picker opens in the Files part (dotes h projects: its own program) // the settings folder: home.txt edited in Nvim shows at once
+	inWindow    bool // the project picker opens in the Files part (dotes h projects: its own program)
+
+	// the glance at the other parts (only the picked ones)
+	on         map[string]bool
+	notesG     *notes.GlanceInfo
+	gitG       *git.GlanceInfo
+	recent     []string // recent projects
+	branch     string   // of the folder you're in
+	pzones     []pzone
+	ticks      int
+	looking    bool // a glance is being gathered in the background
+	glanceDump bool // --dump: gather it at once (tests leave it off: no git, no zoxide)
+}
+
+// glanceMsg: what the background look found
+type glanceMsg struct {
+	git    *git.GlanceInfo
+	recent []string
+	branch string
+}
+
+// look gathers the slow part of the glance (git in every repo, zoxide) in the background
+func (m *model) look() tea.Cmd {
+	if m.looking {
+		return nil
+	}
+	m.looking = true
+	on, cwd := m.on, m.cwd
+	roots, search, skip := m.cfg.roots, m.cfg.search, m.cfg.skip
+	return func() tea.Msg {
+		out := glanceMsg{branch: gitBranch(cwd)}
+		if on["git"] {
+			g := git.Glance()
+			out.git = &g
+		}
+		if on["files"] {
+			mm := &model{cfg: config{roots: roots, search: search, skip: skip}}
+			for _, d := range mm.projects() { // real projects only (zoxide also knows Documents, ...)
+				if len(out.recent) < panelRows && isProject(d) {
+					out.recent = append(out.recent, d)
+				}
+			}
+		}
+		return out
+	}
+}
+
+// isProject: a folder with a project marker (.git, go.mod, package.json, ...)
+func isProject(d string) bool {
+	for _, mk := range markers {
+		if _, err := os.Stat(filepath.Join(d, mk)); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// lookNotes reads the notebook (fast: done right here)
+func (m *model) lookNotes() {
+	if m.on["notes"] && (!m.dump || notes.Ready()) { // tests: only with a test notebook
+		g := notes.Glance(panelRows)
+		m.notesG = &g
+	}
 }
 
 type tickMsg struct{}
@@ -64,10 +129,6 @@ type projectDoneMsg struct {
 
 func newModel() *model {
 	m := &model{cfg: loadConfig(), hintsOn: app.LoadShared().Hints, now: time.Now()}
-	m.style = m.cfg.style
-	if b, err := os.ReadFile(app.File("home-style.txt")); err == nil && styleNames[strings.TrimSpace(string(b))] != "" {
-		m.style = strings.TrimSpace(string(b))
-	}
 	m.cwd, _ = os.Getwd()
 	m.orderApps()
 	if m.cfg.prayer != nil {
@@ -81,10 +142,6 @@ func (m *model) reloadSettings() {
 	old := m.cfg.prayer
 	m.cfg = loadConfig()
 	m.hintsOn = app.LoadShared().Hints
-	m.style = m.cfg.style
-	if b, err := os.ReadFile(app.File("home-style.txt")); err == nil && styleNames[strings.TrimSpace(string(b))] != "" {
-		m.style = strings.TrimSpace(string(b))
-	}
 	m.orderApps()
 	m.sel = max(0, min(m.sel, len(m.apps)-1))
 	if p := m.cfg.prayer; p != nil && (old == nil || prayerKey(p, m.now) != prayerKey(old, m.now)) {
@@ -94,7 +151,16 @@ func (m *model) reloadSettings() {
 }
 
 func (m *model) Init() tea.Cmd {
+	m.lookNotes()
+	if m.dump && m.glanceDump { // dotes --dump home: the glance right away
+		if g, ok := m.look()().(glanceMsg); ok {
+			m.Update(g)
+		}
+	}
 	cmds := []tea.Cmd{m.tick()}
+	if !m.dump {
+		cmds = append(cmds, m.look())
+	}
 	if !m.dump {
 		m.watch = watch.New("home")
 		m.watch.Set(app.Dir())
@@ -119,7 +185,12 @@ func (m *model) tick() tea.Cmd {
 func recentFile() string { return app.File("home-recent.txt") }
 
 func (m *model) orderApps() {
-	m.apps = withParts(m.cfg.apps, app.LoadShared().Parts)
+	picked := app.LoadShared().Parts
+	m.on = map[string]bool{}
+	for _, id := range picked {
+		m.on[id] = true
+	}
+	m.apps = withParts(m.cfg.apps, picked)
 	if !m.cfg.recent {
 		return
 	}
@@ -158,13 +229,31 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.w, m.h = msg.Width, msg.Height
 	case tickMsg:
 		m.now = time.Now()
+		m.ticks++
 		var cmd tea.Cmd
+		if m.ticks%5 == 0 {
+			m.lookNotes()
+		}
+		if m.ticks%60 == 0 {
+			cmd = m.look()
+		}
 		if m.cfg.prayer != nil && (m.prayer == nil || m.prayer.Key != prayerKey(m.cfg.prayer, m.now)) &&
 			m.now.After(m.prayerRetry) && !m.dump {
 			m.prayerRetry = m.now.Add(5 * time.Minute) // one try at a time; offline: again in 5 minutes
-			cmd = fetchPrayer(m.cfg.prayer)
+			cmd = tea.Batch(cmd, fetchPrayer(m.cfg.prayer))
 		}
 		return m, tea.Batch(m.tick(), cmd)
+	case glanceMsg:
+		m.looking = false
+		if msg.git != nil {
+			m.gitG = msg.git
+		}
+		m.recent, m.branch = msg.recent, msg.branch
+	case app.ShownMsg: // back on Home: fresh news from the other parts
+		if msg.ID == "home" {
+			m.lookNotes()
+			return m, m.look()
+		}
 	case watch.Msg:
 		if msg.Key != "home" {
 			return m, nil
@@ -186,7 +275,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.cfg = loadConfig() // pick up settings edited meanwhile
 		m.orderApps()
-		m.sel, m.filter = 0, ""
+		m.sel = 0
 	case pickedMsg:
 		return m, m.picked(msg)
 	case app.PickedMsg: // picked in the Files part: open it from here
@@ -214,12 +303,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *model) setNote(s string, isErr bool) { m.note, m.noteErr = s, isErr }
 
-func (m *model) count() int {
-	if m.style == "palette" {
-		return len(m.found)
-	}
-	return len(m.apps)
-}
+func (m *model) count() int { return len(m.apps) }
 
 func (m *model) move(d int) {
 	if n := m.count(); n > 0 {
@@ -242,67 +326,18 @@ func (m *model) key(k tea.KeyPressMsg) tea.Cmd {
 		}
 		return nil
 	}
-	if m.popup {
-		switch s {
-		case "up", "k", "shift+tab":
-			m.popSel = (m.popSel + len(styles) - 1) % len(styles)
-		case "down", "j", "tab":
-			m.popSel = (m.popSel + 1) % len(styles)
-		case "enter":
-			m.setStyle(styles[m.popSel])
-			m.popup = false
-		case "esc", "t", "ctrl+t", "q":
-			m.popup = false
-		}
-		return nil
-	}
-	pal := m.style == "palette"
-	switch {
-	case s == "f1" || (!pal && (s == "?" || s == "~")):
+	switch s {
+	case "f1", "?", "~":
 		m.help = true
 		return nil
-	case s == "ctrl+t" || (!pal && s == "t"):
-		m.popup = true
-		for i, st := range styles {
-			if st == m.style {
-				m.popSel = i
-			}
-		}
-		return nil
-	case s == "ctrl+x" || (!pal && s == "x"):
+	case "x":
 		app.ExitCode = app.ExitCloseTab // the shell function closes the terminal tab
 		return tea.Quit
-	case s == "ctrl+c":
+	case "ctrl+c":
 		return tea.Quit
 	}
-	if pal {
-		switch s {
-		case "up", "shift+tab":
-			m.move(-1)
-		case "down", "tab":
-			m.move(1)
-		case "enter":
-			if m.sel < len(m.found) {
-				return m.open(m.apps[m.found[m.sel]])
-			}
-		case "esc":
-			if m.filter == "" {
-				return tea.Quit
-			}
-			m.filter, m.sel = "", 0
-		case "backspace":
-			if r := []rune(m.filter); len(r) > 0 {
-				m.filter, m.sel = string(r[:len(r)-1]), 0
-			}
-		default:
-			if t := k.Text; t != "" && strings.TrimSpace(t) != "" || t == " " {
-				m.filter, m.sel = m.filter+t, 0
-			}
-		}
-		return nil
-	}
 	n := len(m.apps)
-	rows := m.style == "cards" && m.perRow > 0 && m.perRow < n // up / down jump a row of cards
+	rows := m.perRow > 0 && m.perRow < n // up / down jump a row of cards
 	switch s {
 	case "left", "shift+tab": // letters are app keys, so no h j k l here
 		m.move(-1)
@@ -337,27 +372,23 @@ func (m *model) key(k tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
-func (m *model) setStyle(st string) {
-	m.style, m.sel, m.filter = st, 0, ""
-	if !m.dump {
-		os.WriteFile(app.File("home-style.txt"), []byte(st), 0o644)
-	}
-}
-
 func (m *model) click(x, y int) tea.Cmd {
-	if m.help || m.popup {
+	if m.help {
 		return nil
 	}
 	for _, z := range m.zones {
 		if x >= z.x0 && x <= z.x1 && y >= z.y0 && y <= z.y1 {
 			if m.sel == z.idx { // second click opens
-				if m.style == "palette" {
-					return m.open(m.apps[m.found[z.idx]])
-				}
 				return m.open(m.apps[z.idx])
 			}
 			m.sel = z.idx
 			return nil
+		}
+	}
+	for i := len(m.pzones) - 1; i >= 0; i-- { // a line before its panel
+		z := m.pzones[i]
+		if x >= z.x0 && x <= z.x1 && y >= z.y0 && y <= z.y1 && z.part != "" {
+			return app.Open(z.part, z.path)
 		}
 	}
 	return nil

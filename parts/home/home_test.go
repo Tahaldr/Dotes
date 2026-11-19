@@ -9,6 +9,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/Tahaldr/dotes/internal/app"
+	"github.com/Tahaldr/dotes/internal/ui"
+	"github.com/Tahaldr/dotes/parts/git"
+	"github.com/Tahaldr/dotes/parts/notes"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -39,32 +42,23 @@ func fresh(t *testing.T) *model {
 	return m
 }
 
-func TestFirstFrameEveryStyleAndSize(t *testing.T) {
-	for _, st := range styles {
-		for _, sz := range [][2]int{{1, 1}, {10, 4}, {20, 5}, {40, 12}, {80, 24}, {200, 60}} {
-			m := fresh(t)
-			m.style = st
-			m.View()
-			run(m, sz[0], sz[1])
-			run(m, sz[0], sz[1], "t", "down", "?", "x", "right")
-		}
+func TestFirstFrameEverySize(t *testing.T) {
+	for _, sz := range [][2]int{{1, 1}, {10, 4}, {20, 5}, {40, 12}, {80, 24}, {200, 60}} {
+		m := fresh(t)
+		m.View()
+		run(m, sz[0], sz[1])
+		run(m, sz[0], sz[1], "down", "F1", "x", "right")
 	}
 }
 
-func TestCardsMoveOpenSwitch(t *testing.T) {
+func TestCardsMoveOpen(t *testing.T) {
 	m := fresh(t)
 	o := run(m, 110, 30)
-	if !strings.Contains(o, "Nvim") || !strings.Contains(o, "Git") {
+	if !strings.Contains(o, "Nvim") || !strings.Contains(o, "Projects") || !strings.Contains(o, "Home") {
 		t.Fatalf("cards:\n%s", o)
 	}
-	m.sel = 0
-	run(m, 110, 30, "right", "right", "right") // Files
-	if m.apps[m.sel].name != "Files" {
-		t.Fatalf("sel = %s", m.apps[m.sel].name)
-	}
-	cmd := m.open(m.apps[m.sel])
-	if sw, ok := cmd().(app.SwitchMsg); !ok || sw.ID != "files" {
-		t.Fatalf("Files should switch to the Files part, got %#v", cmd())
+	if strings.Contains(o, "file manager") || strings.Contains(o, "todos and notes") {
+		t.Fatalf("the parts are in the tab row, not cards:\n%s", o)
 	}
 	o = run(m, 110, 30, "v") // VS Code by its key: in dump mode it says what it would run
 	if !strings.Contains(o, "would run: code .") {
@@ -72,9 +66,23 @@ func TestCardsMoveOpenSwitch(t *testing.T) {
 	}
 }
 
-// the picked parts are apps on Home by themselves; the others aren't there
+// up to 5 cards a row, the rows evened out
+func TestGridRows(t *testing.T) {
+	m := fresh(t)
+	for _, c := range []struct{ n, per int }{{3, 3}, {5, 5}, {6, 3}, {7, 4}, {11, 4}} {
+		m.apps = nil
+		for i := 0; i < c.n; i++ {
+			m.apps = append(m.apps, appItem{name: "App" + itoa(i), run: "x"})
+		}
+		m.grid(200)
+		if m.perRow != c.per {
+			t.Errorf("%d apps: %d a row, want %d", c.n, m.perRow, c.per)
+		}
+	}
+}
+
+// the parts aren't cards (they're in the tab row); the picker needs Files
 func TestPartApps(t *testing.T) {
-	defer app.SaveParts([]string{"home", "files", "notes", "git"})
 	names := func(apps []appItem) string {
 		var n []string
 		for _, a := range apps {
@@ -82,30 +90,40 @@ func TestPartApps(t *testing.T) {
 		}
 		return strings.Join(n, " ")
 	}
-	base := []appItem{{name: "Nvim", key: "n", run: "nvim ."}, {name: "Files", key: "f", run: "projects"}, {name: "Notes", key: "o", run: "dotes n"}, {name: "Shell", key: "s"}}
-	if got := names(withParts(base, []string{"home", "files", "git"})); got != "Nvim/n Files/f Git/g Shell/s" {
+	base := []appItem{{name: "Nvim", key: "n", run: "nvim ."}, {name: "Projects", key: "f", run: "projects"}, {name: "Notes", key: "o", run: "dotes n"}, {name: "Shell", key: "s"}}
+	if got := names(withParts(base, []string{"home", "files", "git"})); got != "Nvim/n Projects/f Shell/s" {
 		t.Fatalf("got %s", got)
 	}
-	if got := names(withParts(base, []string{"home", "notes"})); got != "Nvim/n Notes/o Shell/s" {
+	if got := names(withParts(base, []string{"home", "notes"})); got != "Nvim/n Shell/s" {
 		t.Fatalf("got %s", got)
 	}
 }
 
-func TestThemesAndPalette(t *testing.T) {
+// the glance: a panel per picked part, a click on a line goes right there
+func TestGlance(t *testing.T) {
 	m := fresh(t)
-	run(m, 100, 26, "t", "down", "down", "enter")
-	if m.style != "palette" {
-		t.Fatalf("style = %s", m.style)
+	m.notesG = &notes.GlanceInfo{Open: 4, Today: 1, Items: []notes.GlanceItem{{Text: "buy milk", When: "today", WhenStyle: fg(ui.Yellow)}}}
+	m.gitG = &git.GlanceInfo{Local: 9, Repos: []git.GlanceRepo{{Name: "Dotes", Dir: `C:\x\Dotes`, Dirty: 3, Ahead: 1}}}
+	m.recent = []string{filepath.Join("C:", "code", "Shop")}
+	o := run(m, 130, 34)
+	for _, want := range []string{"Notes", "1 today", "buy milk", "Git", "Dotes", "●3", "↑1", "Projects", "Shop"} {
+		if !strings.Contains(o, want) {
+			t.Fatalf("no %q in the glance:\n%s", want, o)
+		}
 	}
-	o := run(m, 100, 26, "g", "i")
-	if !strings.Contains(o, "1/6") || !strings.Contains(o, "Git") {
-		t.Fatalf("palette filter:\n%s", o)
+	var line *pzone
+	for i := range m.pzones {
+		if m.pzones[i].path == `C:\x\Dotes` {
+			line = &m.pzones[i]
+		}
 	}
-	o = run(m, 100, 26, "esc", "esc") // clear, then quit is fine
-	if m.filter != "" {
-		t.Fatalf("esc clears the filter")
+	if line == nil {
+		t.Fatalf("no zone for the Dotes line: %+v", m.pzones)
 	}
-	_ = o
+	cmd := m.click(line.x0+2, line.y0)
+	if sw, ok := cmd().(app.SwitchMsg); !ok || sw.ID != "git" || sw.Path != `C:\x\Dotes` {
+		t.Fatalf("a click on the repo should open it in Git: %#v", cmd())
+	}
 }
 
 func TestClickOpens(t *testing.T) {
@@ -145,8 +163,8 @@ func TestPrayerState(t *testing.T) {
 	m.prayer, m.now = d, at("15:09")
 	m.cfg.prayer = &prayerCfg{city: "X"}
 	o := run(m, 110, 34)
-	if !strings.Contains(o, "Asr in 1m 00s") || !strings.Contains(o, "Maghrib") {
-		t.Fatalf("prayer box:\n%s", o)
+	if !strings.Contains(o, "in 1m 00s") || !strings.Contains(o, "Asr") || !strings.Contains(o, "Maghrib") {
+		t.Fatalf("prayer panel:\n%s", o)
 	}
 }
 
@@ -174,7 +192,7 @@ func TestImportTermNook(t *testing.T) {
 	os.Remove(configFile())
 	importFrom(dir)
 	c := loadConfig()
-	if c.style != "info" || c.github != "someone" || c.prayer == nil || c.prayer.method != 21 || len(c.apps) != 3 {
+	if c.github != "someone" || c.prayer == nil || c.prayer.method != 21 || len(c.apps) != 3 {
 		t.Fatalf("imported: %+v", c)
 	}
 	if c.apps[1].run != "dotes g" || c.apps[2].run != "projects" || c.apps[0].icon != "\uf36f" {
