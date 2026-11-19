@@ -27,7 +27,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/Tahaldr/dotes/internal/rtl"
 	"github.com/Tahaldr/dotes/internal/ui"
-	"github.com/charmbracelet/x/ansi"
 )
 
 func fg(c color.Color) lipgloss.Style { return ui.FG(c) }
@@ -192,12 +191,22 @@ func (m *model) panelBox(p panel, w int, on bool, line int) []string {
 		if i < len(p.lines) {
 			l = p.lines[i]
 		}
-		if on && i != line && l != "" { // the picked line stays bright, the others fade
-			l = fg(t.mut).Render(ansi.Strip(l))
+		if on && i == line && l != "" { // the picked line: a background behind it, its colors kept
+			out = append(out, b.Render("│")+withBg(" "+ui.Pad(l, inner-2)+" ", t.selBg)+b.Render("│"))
+			continue
 		}
 		out = append(out, b.Render("│")+" "+ui.Pad(l, inner-2)+" "+b.Render("│"))
 	}
 	return append(out, b.Render("╰"+strings.Repeat("─", inner)+"╯"))
+}
+
+// withBg puts a background color behind already colored text (every reset turns it back on)
+func withBg(s string, c color.Color) string {
+	r, g, b, _ := c.RGBA()
+	on := fmt.Sprintf("\x1b[48;2;%d;%d;%dm", r>>8, g>>8, b>>8)
+	s = strings.ReplaceAll(s, "\x1b[0m", "\x1b[0m"+on)
+	s = strings.ReplaceAll(s, "\x1b[m", "\x1b[m"+on)
+	return on + s + "\x1b[0m"
 }
 
 // spread2: left text, right text, on one line of w

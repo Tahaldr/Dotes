@@ -224,3 +224,11 @@ func TestPanelKeys(t *testing.T) {
 		t.Fatal("space should go back to the cards")
 	}
 }
+
+// the picked line keeps its colors, with the background behind all of it
+func TestWithBg(t *testing.T) {
+	s := withBg(fg(ui.Red).Render("✗")+" shop", ui.Dim)
+	if strings.Count(s, "\x1b[48;2;62;68;81m") < 2 || ansi.Strip(s) != "✗ shop" {
+		t.Fatalf("%q", s)
+	}
+}
