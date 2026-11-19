@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const Version = "0.8.1"
+const Version = "0.8.2"
 
 // Parts, in tab order. Key is the short command (dotes f) and the alt+N order.
 type PartInfo struct {
@@ -191,6 +191,19 @@ type SwitchMsg struct{ ID, Path string }
 
 // OpenMsg goes to the part just shown: open Path in it.
 type OpenMsg struct{ Path string }
+
+// PickProjectsMsg asks Files to show these projects to pick one from (Home's project picker,
+// in the same window). Openers are the apps that can open it: key, name.
+type PickProjectsMsg struct {
+	Projects []string
+	Openers  [][2]string
+}
+
+// PickedMsg: the project picked in Files, and which opener (index) should open it.
+type PickedMsg struct {
+	Opener int
+	Path   string
+}
 
 // ExitCode is what Dotes exits with. ExitCloseTab tells the shell function to close the
 // terminal tab too (x on Home).

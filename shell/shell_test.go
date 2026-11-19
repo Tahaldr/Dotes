@@ -206,3 +206,28 @@ func TestLinkClick(t *testing.T) {
 		t.Fatalf("click should open Files at src:\n%s", o)
 	}
 }
+
+// Home's project picker is the Files part in the same window: pick one, Home opens it
+func TestPickInWindow(t *testing.T) {
+	app.SaveParts([]string{"home", "files"})
+	defer app.SaveParts([]string{"files"})
+	proj := filepath.Join(t.TempDir(), "Proj")
+	os.MkdirAll(proj, 0o755)
+	m := New(Options{Notebook: t.TempDir(), FilesPath: t.TempDir(), Dump: true})
+	run(m, 110, 30)
+	ui.Drain(m, app.Open("files", "")) // what Home's tea.Sequence sends, in order
+	ui.Drain(m, func() tea.Msg {
+		return app.PickProjectsMsg{Projects: []string{proj}, Openers: [][2]string{{"", "Nvim"}, {"s", "Shell"}}}
+	})
+	o := run(m, 110, 30)
+	if m.cur().info.ID != "files" || !strings.Contains(o, "Recent projects") || !strings.Contains(o, "Proj") {
+		t.Fatalf("the picker should show in Files:\n%s", o)
+	}
+	run(m, 110, 30, "q") // q: back to Home, and Files is itself again next time
+	if m.cur().info.ID != "home" {
+		t.Fatalf("q in the picker should go back to Home, got %s", m.cur().info.ID)
+	}
+	if o = run(m, 110, 30, "alt+2"); strings.Contains(o, "Recent projects") {
+		t.Fatalf("Files should browse again:\n%s", o)
+	}
+}

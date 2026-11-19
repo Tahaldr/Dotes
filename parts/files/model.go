@@ -102,10 +102,11 @@ type model struct {
 	menu    *menuState // open-with menu
 
 	// filled by View, used by the mouse
-	colX  [3][2]int // x start / end of parent, current, preview columns
-	bodyY int       // first row of the columns
-	tabXs [][2]int  // where the folder tabs are in the tab row (clicks)
-	bodyH int
+	colX      [3][2]int      // x start / end of parent, current, preview columns
+	bodyY     int            // first row of the columns
+	tabXs     [][2]int       // where the folder tabs are in the tab row (clicks)
+	pickedOut *app.PickedMsg // a project picked for Home, sent back after this key
+	bodyH     int
 }
 
 type previewMsg struct{ p preview }
@@ -390,7 +391,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.jumpTo(o.Path)
 		return m, m.imgSyncLater()
 	}
+	if p, ok := msg.(app.PickProjectsMsg); ok {
+		m.startPick(p)
+		return m, tea.Batch(m.previewCmd(), m.imgSyncLater())
+	}
 	if s, ok := msg.(app.ShownMsg); ok {
+		m.endPick() // shown again: a picker left with q / alt+N is over
 		m.hidden = s.ID != "files"
 		if !m.hidden {
 			m.quitting = false // q went back to Home: this part goes on when you come back
@@ -406,6 +412,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	mm, cmd := m.update(msg)
 	m.watchSync()
+	if p := m.pickedOut; p != nil {
+		m.pickedOut = nil
+		cmd = tea.Batch(cmd, func() tea.Msg { return *p })
+	}
 	cmd = tea.Batch(cmd, m.imgSyncLater())
 	if g := m.gitRefresh(); g != nil {
 		cmd = tea.Batch(cmd, g)

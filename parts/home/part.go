@@ -36,6 +36,7 @@ func New(o Options) tea.Model {
 	if o.Projects {
 		return &projectsOnly{m}
 	}
+	m.inWindow = true // the project picker is the Files part next to Home
 	return m
 }
 

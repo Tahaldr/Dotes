@@ -44,7 +44,8 @@ type model struct {
 	cwdFile     string
 	dump, live  bool
 	zones       []zone
-	watch       *watch.Watcher // the settings folder: home.txt edited in Nvim shows at once
+	watch       *watch.Watcher
+	inWindow    bool // the project picker opens in the Files part (dotes h projects: its own program) // the settings folder: home.txt edited in Nvim shows at once
 }
 
 type tickMsg struct{}
@@ -188,6 +189,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sel, m.filter = 0, ""
 	case pickedMsg:
 		return m, m.picked(msg)
+	case app.PickedMsg: // picked in the Files part: open it from here
+		return m, tea.Sequence(app.Open("home", ""), m.openPicked(msg.Opener, msg.Path))
 	case projectDoneMsg:
 		if msg.err != nil {
 			m.setNote(msg.err.Error(), true)
@@ -438,9 +441,16 @@ func (m *model) pickProject() tea.Cmd {
 		m.setNote("project_open_with in home.txt has no apps", true)
 		return nil
 	}
-	if m.dump {
+	if m.dump && !m.inWindow {
 		m.setNote("would open the project picker", false)
 		return nil
+	}
+	if m.inWindow { // the Files part, in this window: instant
+		pp := app.PickProjectsMsg{Projects: m.projects()}
+		for _, o := range ow {
+			pp.Openers = append(pp.Openers, [2]string{o.key, o.name})
+		}
+		return tea.Sequence(app.Open("files", ""), func() tea.Msg { return pp })
 	}
 	tmp := os.TempDir()
 	id := strconv.FormatInt(time.Now().UnixNano(), 36)
@@ -476,11 +486,16 @@ func (m *model) picked(p pickedMsg) tea.Cmd {
 		return nil
 	}
 	idxS, target, _ := strings.Cut(string(b), "\t")
+	idx, _ := strconv.Atoi(idxS)
+	return m.openPicked(idx, target)
+}
+
+// openPicked opens a picked project with opener idx (project_open_with)
+func (m *model) openPicked(idx int, target string) tea.Cmd {
 	target = strings.TrimRight(strings.TrimSpace(target), `\/`)
-	if target == "" {
+	if target == "" || len(m.cfg.openWith) == 0 {
 		return nil
 	}
-	idx, _ := strconv.Atoi(idxS)
 	o := m.cfg.openWith[min(max(0, idx), len(m.cfg.openWith)-1)]
 	dir, file := target, ""
 	if fi, err := os.Stat(target); err == nil && !fi.IsDir() {

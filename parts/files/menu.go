@@ -6,6 +6,7 @@ package files
 
 import (
 	"fmt"
+	"github.com/Tahaldr/dotes/internal/app"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,6 +23,7 @@ import (
 
 type pickArgs struct {
 	out      string   // where the choice goes: "index<TAB>path"
+	inWindow bool     // Home's picker in the same window: the choice goes back as app.PickedMsg
 	openers  []opener // TermNook's OpenWith apps; the first opens on enter
 	projects []string
 }
@@ -54,6 +56,29 @@ func loadOpeners(path string) []opener {
 	return out
 }
 
+func (m *model) picking() bool { return m.pick.out != "" || m.pick.inWindow }
+
+// startPick: Home asks for a project (app.PickProjectsMsg)
+func (m *model) startPick(p app.PickProjectsMsg) {
+	m.pick = pickArgs{inWindow: true, projects: p.Projects}
+	for _, o := range p.Openers {
+		m.pick.openers = append(m.pick.openers, opener{key: o[0], name: o[1]})
+	}
+	m.showProjects()
+}
+
+// endPick: back to browsing as before the picker
+func (m *model) endPick() {
+	if !m.pick.inWindow {
+		return
+	}
+	m.pick = pickArgs{}
+	if m.virtual == "projects" {
+		m.virtual = ""
+		m.cd(m.cwd, "", false)
+	}
+}
+
 func (m *model) showProjects() {
 	if len(m.pick.projects) == 0 {
 		return
@@ -83,6 +108,11 @@ func (m *model) showProjects() {
 
 // choose ends pick mode: the path and the app (index into openers) go back to TermNook
 func (m *model) choose(path string, idx int) {
+	if m.pick.inWindow {
+		m.pickedOut = &app.PickedMsg{Opener: idx, Path: path}
+		m.endPick()
+		return
+	}
 	if m.pick.out == "" {
 		return
 	}
@@ -92,7 +122,7 @@ func (m *model) choose(path string, idx int) {
 
 // pickKey: the keys that work differently in pick mode; true = handled
 func (m *model) pickKey(s string) bool {
-	if m.pick.out == "" {
+	if !m.picking() {
 		return false
 	}
 	c := m.current()
@@ -135,7 +165,7 @@ func (m *model) openWithMenu() {
 	}
 	e := *c
 	var items []menuItem
-	if m.pick.out != "" {
+	if m.picking() {
 		for i, o := range m.pick.openers {
 			i := i
 			hint := ""

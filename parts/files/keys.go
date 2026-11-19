@@ -109,7 +109,7 @@ type hintItem struct{ k, d string }
 // contextHints come first in the bar: what you can do right now
 func (m *model) contextHints() []hintItem {
 	var out []hintItem
-	if m.pick.out != "" && len(m.pick.openers) > 0 {
+	if m.picking() && len(m.pick.openers) > 0 {
 		out = append(out, hintItem{"enter", m.pick.openers[0].name})
 		for _, o := range m.pick.openers[1:] {
 			if o.key != "" {
