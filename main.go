@@ -15,6 +15,7 @@ import (
 	"github.com/Tahaldr/dotes/internal/app"
 	"github.com/Tahaldr/dotes/internal/ui"
 	"github.com/Tahaldr/dotes/parts/files"
+	"github.com/Tahaldr/dotes/parts/git"
 	"github.com/Tahaldr/dotes/parts/notes"
 	"github.com/Tahaldr/dotes/shell"
 	"github.com/charmbracelet/x/ansi"
@@ -25,6 +26,7 @@ var usage = `Dotes ` + app.Version + ` - one terminal app with the parts you pic
   dotes                             open your first part (alt+1-9 or a click on the top bar switches)
 ` + files.Usage + `
 ` + notes.Usage + `
+` + git.Usage + `
   dotes setup                       pick the parts you want (the others stay hidden)
   dotes config                      open the settings folder's dotes.txt in your editor
   dotes update [--check]            get the newest version
@@ -122,6 +124,16 @@ func main() {
 				fail("unknown option " + args[i])
 			}
 		}
+	case "g", "git":
+		git.LoadConfig()
+		l := git.Command(args)
+		if l == nil { // login, doctor, config, help: done
+			return
+		}
+		o.Start, o.Git = "git", l
+		if len(args) > 0 && l.Solo() { // a file read full screen: just the reader
+			o.NoBar = true
+		}
 	default:
 		for _, p := range app.Parts {
 			if cmd == p.ID || cmd == p.Short {
@@ -136,8 +148,12 @@ func main() {
 			fail("unknown command " + cmd)
 		}
 	}
-	if _, err := tea.NewProgram(shell.New(o)).Run(); err != nil {
+	sh := shell.New(o)
+	if _, err := tea.NewProgram(sh).Run(); err != nil {
 		crashed(err)
+	}
+	for _, msg := range sh.ExitMessages() {
+		fmt.Println(msg)
 	}
 	if o.Setup {
 		fmt.Println("Saved. Your parts: " + strings.Join(app.LoadShared().Parts, ", ") + ". Run  dotes  to open them.")
@@ -179,7 +195,7 @@ func crashed(err error) {
 	os.Exit(1)
 }
 
-// dump: dotes --dump WxH [files|notes|setup] [dir:PATH] [notebook:PATH] keys...  prints one screen without a terminal
+// dump: dotes --dump WxH [files|notes|git|setup] [dir:PATH] [notebook:PATH] [file:PATH] keys...  prints one screen without a terminal
 func dump(args []string) {
 	w, h := 120, 30
 	if len(args) > 0 {
@@ -192,7 +208,7 @@ func dump(args []string) {
 		}
 	}
 	o := shell.Options{FilesPath: ".", Dump: true}
-	if len(args) > 0 && (args[0] == "files" || args[0] == "notes" || args[0] == "setup") {
+	if len(args) > 0 && (args[0] == "files" || args[0] == "notes" || args[0] == "git" || args[0] == "setup") {
 		if args[0] == "setup" {
 			o.Setup = true
 		} else {
@@ -206,6 +222,16 @@ func dump(args []string) {
 	}
 	if len(args) > 0 && strings.HasPrefix(args[0], "notebook:") {
 		o.Notebook = args[0][9:]
+		args = args[1:]
+	}
+	if len(args) > 0 && strings.HasPrefix(args[0], "file:") { // Git's reader
+		git.LoadConfig()
+		l, err := git.FileLaunch(args[0][5:])
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		o.Start, o.Git, o.NoBar = "git", l, true
 		args = args[1:]
 	}
 	m := shell.New(o)

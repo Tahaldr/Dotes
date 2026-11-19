@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const Version = "0.2.0"
+const Version = "0.3.0"
 
 // Parts, in tab order. Key is the short command (dotes f) and the alt+N order.
 type PartInfo struct {
@@ -20,7 +20,7 @@ var Parts = []PartInfo{
 	{"home", "Home", "h", "dashboard, app launcher, projects, prayer times", false},
 	{"files", "Files", "f", "a yazi-style file manager", true},
 	{"notes", "Notes", "n", "todo lists and notes", true},
-	{"git", "Git", "g", "GitHub and Git: repos, changes, PRs, issues, CI", false},
+	{"git", "Git", "g", "GitHub and Git: repos, changes, PRs, issues, CI", true},
 }
 
 // Dir is the config folder: %APPDATA%\dotes (Windows), ~/.config/dotes (elsewhere).

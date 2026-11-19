@@ -10,6 +10,7 @@ import (
 	"github.com/Tahaldr/dotes/internal/app"
 	"github.com/Tahaldr/dotes/internal/ui"
 	"github.com/Tahaldr/dotes/parts/files"
+	"github.com/Tahaldr/dotes/parts/git"
 	"github.com/Tahaldr/dotes/parts/notes"
 )
 
@@ -40,9 +41,10 @@ type Options struct {
 	Start     string // part id to open first ("" = the first picked)
 	Files     files.Options
 	FilesPath string
-	Notebook  string // Notes: another notebook folder
-	NoBar     bool   // pick mode: just the part
-	Setup     bool   // dotes setup: only the picker
+	Notebook  string      // Notes: another notebook folder
+	Git       *git.Launch // Git: what dotes g ... asked for
+	NoBar     bool        // pick mode: just the part
+	Setup     bool        // dotes setup: only the picker
 	Dump      bool
 }
 
@@ -59,6 +61,10 @@ func New(o Options) *Model {
 		"notes": func() tea.Model {
 			notes.LoadConfig(o.Notebook)
 			return notes.New(notes.Options{Dump: o.Dump})
+		},
+		"git": func() tea.Model {
+			git.LoadConfig()
+			return git.New(o.Git, o.Dump)
 		},
 	}
 	sh := app.LoadShared()
@@ -302,4 +308,15 @@ func (m *Model) emptyView() string {
 		"  " + ui.FG(ui.Mut).Render("Run  dotes setup  to pick a part that is ready now.  q quits."),
 	}
 	return strings.Join(lines, "\n")
+}
+
+// ExitMessages: what parts want printed after Dotes closes
+func (m *Model) ExitMessages() []string {
+	var out []string
+	for _, p := range m.parts {
+		if e, ok := p.m.(interface{ ExitMessage() string }); ok && e.ExitMessage() != "" {
+			out = append(out, e.ExitMessage())
+		}
+	}
+	return out
 }

@@ -7,7 +7,7 @@ one settings folder, and you switch between them in the same window.
 |---|---|---|
 | **Files** | a yazi-style file manager | ready |
 | **Notes** | todo lists and notes | ready |
-| **Git** | GitHub and Git: repos, changes, PRs, issues, CI | coming |
+| **Git** | GitHub and Git: repos, changes, PRs, issues, CI | ready |
 | **Home** | dashboard, app launcher, projects, prayer times | coming |
 
 The first time you run `dotes` it asks which parts you want. The others stay hidden; change
@@ -19,6 +19,7 @@ your pick any time with `dotes setup`.
 dotes                 open your first part
 dotes f [folder]      Files
 dotes n               Notes  (dotes n add "buy milk" -d fri, dotes n today, dotes n lists)
+dotes g [tab|repo|.]  Git    (dotes g login, dotes g doctor, dotes g FILE reads a file)
 dotes setup           pick your parts
 dotes config          open the settings (dotes.txt)
 dotes update          get the newest version
@@ -34,8 +35,9 @@ the part you're in.
 - `dotes.txt`: shared settings (your parts, key hints, the top bar)
 - `files.txt`: Files settings (and `files-bookmarks.txt`)
 - `notes.txt`: Notes settings (your notebook folder, editor, inbox list)
+- `git.txt`: Git settings (start tab, where to clone, editor, git tool)
 
-Coming from TermFiles or TermNotes? Their settings and bookmarks are copied over the first time.
+Coming from TermFiles, TermNotes or TermGit? Their settings and bookmarks are copied over the first time.
 
 Every option is explained in the file itself. Updates never touch these files.
 

@@ -56,8 +56,8 @@ func TestSetupFirstRun(t *testing.T) {
 	if app.HasShared() {
 		t.Fatal("dotes.txt must not exist before the user picks")
 	}
-	o := run(m, 100, 20, "a", "a", "j", "space", "j", "space", "enter") // all off, all on, unpick Files + Notes
-	if !app.HasShared() || strings.Join(app.LoadShared().Parts, ",") != "home,git" {
+	o := run(m, 100, 20, "a", "space", "enter") // all off, pick Home (not ready yet)
+	if !app.HasShared() || strings.Join(app.LoadShared().Parts, ",") != "home" {
 		t.Fatalf("saved parts: %v\n%s", app.LoadShared().Parts, o)
 	}
 	if !strings.Contains(o, "Nothing to show yet") {
