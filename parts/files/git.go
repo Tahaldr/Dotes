@@ -40,11 +40,22 @@ func gitStatus(dir string) map[string]string {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	top, err := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "--show-toplevel").Output()
+	top, err := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "--show-toplevel", "--show-prefix").Output()
 	if err != nil {
 		return nil
 	}
-	root := filepath.Clean(strings.TrimSpace(string(top)))
+	lines := strings.SplitN(strings.TrimRight(string(top), "\r\n"), "\n", 2)
+	root := filepath.Clean(strings.TrimSpace(lines[0]))
+	// the repo's top as this folder spells it: git resolves links and short names
+	// (RUNNER~1, /var → /private/var), but the list shows the path you went in by
+	base := filepath.Clean(dir)
+	if len(lines) == 2 {
+		for _, part := range strings.Split(strings.Trim(strings.TrimSpace(lines[1]), "/"), "/") {
+			if part != "" {
+				base = filepath.Dir(base)
+			}
+		}
+	}
 	out, err := exec.CommandContext(ctx, "git", "-C", root, "status", "--porcelain=v1", "-z",
 		"--ignored=matching", "--untracked-files=normal").Output()
 	if err != nil {
@@ -61,14 +72,14 @@ func gitStatus(dir string) map[string]string {
 		if xy[0] == 'R' || xy[0] == 'C' {
 			i++ // the old name comes next
 		}
-		abs := strings.ToLower(filepath.Join(root, filepath.FromSlash(strings.TrimSuffix(rel, "/"))))
+		abs := strings.ToLower(filepath.Join(base, filepath.FromSlash(strings.TrimSuffix(rel, "/"))))
 		mark := gitMark(xy)
 		marks[abs] = mark
 		if mark == "!" {
 			continue
 		}
 		// folders above a change get a dot
-		for d := filepath.Dir(abs); len(d) > len(root) && strings.HasPrefix(d, strings.ToLower(root)); d = filepath.Dir(d) {
+		for d := filepath.Dir(abs); len(d) > len(base) && strings.HasPrefix(d, strings.ToLower(base)); d = filepath.Dir(d) {
 			if _, ok := marks[d]; !ok {
 				marks[d] = "•"
 			}
