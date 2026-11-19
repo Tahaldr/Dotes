@@ -58,7 +58,7 @@ One batch at a time; next only when the user says.
 4. ✅ **Home part** (v0.4.0; settings moved from TermNook automatically, x closes the tab through the shell function). TermNook rewritten in Go: dashboard layouts (cards/info/palette/list),
    apps launcher, quick picker, project picker (uses the Files part), prayer times,
    logo, recent. A small profile function so `dotes` can cd the shell and launch apps.
-5. **Links between parts + Notes path mentions.**
+5. ✅ **Links between parts + Notes path mentions** (v0.5.0: Files gi → Git, gn → project note; Git ctrl+f → Files; Notes gf → Files, path suggestions while typing, paths shown as links).
    - Files → "open in Git" on a repo folder; Files → project notes.
    - Git → open the repo folder in Files.
    - Notes: type a file path in a todo/note, get suggestions (popup like the Nvim

@@ -95,7 +95,13 @@ func (m *model) suggestPopup(lines []string) {
 	for _, it := range items[first:last] {
 		w = max(w, width(filepath.Base(strings.TrimRight(it, `/\`)))+4)
 	}
-	w = min(max(w+4, 24), m.w-2)
+	more := keyHints("tab", "next", "shift+tab", "back")
+	if n := strconv.Itoa(len(items)); sel >= 0 {
+		more = fg(cMut).Render(strconv.Itoa(sel+1)+"/"+n) + "  " + keyHints("tab", "next", "enter", "keep")
+	} else if len(items) > last-first {
+		more = fg(cMut).Render(n) + "  " + more
+	}
+	w = min(max(w+4, width(more)+4, 24), m.w-2)
 	var body []string
 	for i := first; i < last; i++ {
 		name := filepath.Base(strings.TrimRight(items[i], `/\`))
@@ -108,12 +114,6 @@ func (m *model) suggestPopup(lines []string) {
 			st = fg(cAcc).Bold(true)
 		}
 		body = append(body, ic+" "+st.Render(trunc(name, w-6)))
-	}
-	more := keyHints("tab", "next", "shift+tab", "back")
-	if n := strconv.Itoa(len(items)); sel >= 0 {
-		more = fg(cMut).Render(strconv.Itoa(sel+1)+"/"+n) + "  " + keyHints("tab", "next", "enter", "keep")
-	} else if len(items) > last-first {
-		more = fg(cMut).Render(n) + "  " + more
 	}
 	body = append(body, more)
 	box := popupBox("", w, body, fg(cDim))

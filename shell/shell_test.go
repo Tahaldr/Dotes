@@ -2,6 +2,7 @@ package shell
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -152,4 +153,25 @@ func TestHomeSwitchesParts(t *testing.T) {
 		t.Fatalf("o on Home should open Notes, got %s (%d parts)", m.cur().info.ID, len(m.parts))
 	}
 	app.SaveParts([]string{"files"})
+}
+
+// Files gn → Notes makes the project's note; Notes gf on a path → Files goes there
+func TestLinks(t *testing.T) {
+	app.SaveParts([]string{"files", "notes"})
+	defer app.SaveParts([]string{"files"})
+	nb, proj := t.TempDir(), filepath.Join(t.TempDir(), "Proj")
+	os.MkdirAll(filepath.Join(proj, "src"), 0o755)
+	os.MkdirAll(nb+"/todos", 0o755)
+	os.WriteFile(nb+"/todos/Work.md", []byte("# Work\n\n- [ ] look in "+filepath.ToSlash(proj)+"/src now\n"), 0o644)
+	m := New(Options{FilesPath: proj, Notebook: nb, Dump: true})
+	run(m, 110, 20)
+	m.Update(app.SwitchMsg{ID: "notes", Path: proj})
+	o := run(m, 110, 20)
+	if _, err := os.Stat(filepath.Join(nb, "notes", "Proj.md")); err != nil || !strings.Contains(o, "Proj") {
+		t.Fatalf("gn should make and show the Proj note (%v):\n%s", err, o)
+	}
+	o = run(m, 110, 20, "esc", "1", "enter", "g", "f")
+	if !strings.Contains(o, "NOR") || !strings.Contains(o, "Proj") {
+		t.Fatalf("gf should open the path in Files:\n%s", o)
+	}
 }

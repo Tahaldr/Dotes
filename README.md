@@ -31,6 +31,13 @@ dotes update          get the newest version
 Inside: `alt+1`–`alt+9` (or a click on the top bar) switches parts, `~` shows every key of
 the part you're in.
 
+The parts link to each other:
+
+- Files: `gi` opens the repo you're in, in Git; `gn` opens the project's note in Notes
+- Git: `ctrl+f` shows the repo folder (or the highlighted file) in Files
+- Notes: type `~/` or `C:\` in a todo and the folder's files pop up (`tab` puts one in);
+  paths on your PC show as links, and `gf` opens them in Files
+
 ## Settings
 
 `%APPDATA%\dotes\` on Windows, `~/.config/dotes/` elsewhere:

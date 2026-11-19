@@ -74,6 +74,9 @@ func (m *model) applyWant() tea.Cmd {
 		return m.exSelected()
 	}
 	ex.want = nil
+	if w.what == "" { // just the section (dotes g . , Files' gi): nothing to look for
+		return nil
+	}
 	return m.setStatus("Couldn't find "+w.what+" in the list", true)
 }
 
