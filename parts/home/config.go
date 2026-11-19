@@ -316,6 +316,8 @@ var (
 )
 
 // what TermNook ran, as Dotes does it
+var hintMap = map[string]string{"termgit": "dotes g", "termnotes": "dotes n", "termfiles": "projects"}
+
 var runMap = map[string]string{"termgit": "dotes g", "termnotes": "dotes n", "termfiles": "dotes f", "tf": "dotes f",
 	"nook -p": "projects", "nook -projects": "projects", "nook --projects": "projects"}
 
@@ -381,11 +383,14 @@ func importFrom(dir string) {
 			body := a[2]
 			icon := partOf(body, "Icon")
 			icon = strings.TrimPrefix(strings.ToLower(icon), "0x")
-			run := partOf(body, "Run")
+			run, hint := partOf(body, "Run"), partOf(body, "Hint")
 			if r, ok := runMap[strings.TrimSpace(run)]; ok {
 				run = r
 			}
-			lines = append(lines, fmt.Sprintf("app = %s | %s | %s | %s | %s", a[1], partOf(body, "Hint"), partOf(body, "Key"), icon, run))
+			if h, ok := hintMap[strings.TrimSpace(hint)]; ok { // the old app names
+				hint = h
+			}
+			lines = append(lines, fmt.Sprintf("app = %s | %s | %s | %s | %s", a[1], hint, partOf(body, "Key"), icon, run))
 		}
 		out = regexp.MustCompile(`(?m)^app = .*\n`).ReplaceAllString(out, "")
 		out = strings.Replace(out, "#            (empty)                       back to the prompt\n",

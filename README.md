@@ -10,6 +10,24 @@ one settings folder, and you switch between them in the same window.
 | **Notes** | todo lists and notes | ready |
 | **Git** | GitHub and Git: repos, changes, PRs, issues, CI | ready |
 
+## Install
+
+Windows (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/Tahaldr/Dotes/master/install.ps1 | iex
+```
+
+macOS / Linux:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Tahaldr/Dotes/master/install.sh | sh
+```
+
+The installer asks which parts you want and offers to add the shell function to your profile.
+`dotes update` gets newer versions later. The Git part logs in through the
+[GitHub CLI](https://cli.github.com) (`dotes g login`).
+
 The first time you run `dotes` it asks which parts you want. The others stay hidden; change
 your pick any time with `dotes setup`.
 
@@ -26,6 +44,7 @@ dotes g [tab|repo|.]  Git    (dotes g login, dotes g doctor, dotes g FILE reads 
 dotes setup           pick your parts
 dotes config          open the settings (dotes.txt)
 dotes update          get the newest version
+dotes shell pwsh      the shell function for your profile (also bash, zsh)
 ```
 
 Inside: `alt+1`–`alt+9` (or a click on the top bar) switches parts, `~` shows every key of
@@ -56,22 +75,23 @@ Coming from TermNook, TermFiles, TermNotes or TermGit? Their settings and bookma
 
 Every option is explained in the file itself. Updates never touch these files.
 
-## Go to the folder you left (PowerShell)
+## The shell function
 
 Quitting Files with `q` (or opening a project) can leave your shell in that folder, and `x`
-on Home closes the terminal tab. Add this to your `$PROFILE`:
+on Home closes the terminal tab. That needs a small function in your shell; the installer
+adds it, or add the line yourself:
 
 ```powershell
-function dotes {
-    $tmp = [IO.Path]::GetTempFileName()
-    dotes.exe --cwd-file $tmp @args
-    $code = $LASTEXITCODE
-    $dir = Get-Content -LiteralPath $tmp -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath $tmp -ErrorAction SilentlyContinue
-    if ($dir -and $dir -ne $PWD.Path -and (Test-Path -LiteralPath $dir)) { Set-Location -LiteralPath $dir }
-    if ($code -eq 3) { [Environment]::Exit(0) }   # x on Home: close this tab
-}
+# $PROFILE  (--start also opens Home in every new tab)
+dotes.exe shell pwsh --start | Out-String | Invoke-Expression
 ```
+
+```sh
+# ~/.bashrc or ~/.zshrc
+eval "$(command dotes shell bash --start)"
+```
+
+`dotes shell pwsh` prints the function, if you'd rather paste it.
 
 ## Build
 
