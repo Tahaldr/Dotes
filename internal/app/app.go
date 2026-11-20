@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const Version = "1.0.0"
+const Version = "1.0.1"
 
 // Parts, in tab order. Key is the short command (dotes f) and the alt+N order.
 type PartInfo struct {

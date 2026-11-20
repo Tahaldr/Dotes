@@ -89,8 +89,7 @@ recent = off
 
 # today's prayer times with a countdown (from api.aladhan.com once a month). Empty = off.
 #   prayer = City | Country | method   (methods: https://aladhan.com/calculation-methods)
-# prayer = Casablanca | Morocco | 21
-prayer =
+prayer = Casablanca | Morocco | 21
 
 # your apps, in order:  app = Name | hint | key | icon | command
 #   key   one letter that opens it ('t', 'q', 'x' are Home's own)
@@ -386,7 +385,7 @@ func importFrom(dir string) {
 			if method == "" {
 				method = "3"
 			}
-			out = strings.Replace(out, "\nprayer =\n", "\nprayer = "+city+" | "+country+" | "+method+"\n", 1)
+			out = strings.Replace(out, "\nprayer = Casablanca | Morocco | 21\n", "\nprayer = "+city+" | "+country+" | "+method+"\n", 1)
 		}
 	}
 	if apps := psApp.FindAllStringSubmatch(s, -1); len(apps) > 0 {

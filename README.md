@@ -266,7 +266,7 @@ prayer = Casablanca | Morocco | 21
 ```
 
 City, country and a [calculation method](https://aladhan.com/calculation-methods)
-(21 = Morocco). The month is downloaded once and kept, so Home never waits.
+(21 = Morocco). Casablanca is the default; change it to your city, or leave it empty (`prayer =`) to turn prayer times off. The month is downloaded once and kept, so Home never waits.
 </details>
 
 <details>
