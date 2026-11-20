@@ -5,6 +5,7 @@ package files
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -20,6 +21,13 @@ type prompt struct {
 	onChange    func(m *model, s string) // live: filter / find as you type
 	onCancel    func(m *model)
 	onTab       func(m *model)
+
+	// Go to: suggestions under the line (↑↓ pick one, tab takes it)
+	sugs   []pathSug
+	sugSel int // -1 = none picked
+	more   int // how many more matched
+	known  []string
+	sugFor string // the text they're for
 }
 
 type question struct {
@@ -60,12 +68,23 @@ func (m *model) promptKey(k tea.KeyPressMsg) tea.Cmd {
 		if p.onCancel != nil {
 			p.onCancel(m)
 		}
+	case "up", "down":
+		if n := len(p.sugs); n > 0 {
+			if k.String() == "down" {
+				p.sugSel = (p.sugSel + 1) % n
+			} else {
+				p.sugSel = (max(p.sugSel, 0) + n - 1) % n
+			}
+		}
 	case "tab":
 		if p.onTab != nil {
 			p.onTab(m)
 		}
 	case "enter":
 		m.prompt = nil
+		if p.sugSel >= 0 && p.sugSel < len(p.sugs) { // a picked suggestion: go there
+			return p.onOK(m, p.sugs[p.sugSel].path)
+		}
 		return p.onOK(m, string(p.text))
 	case "left", "ctrl+b":
 		p.pos = max(0, p.pos-1)
@@ -232,7 +251,35 @@ func (m *model) inputPopup(lines []string) {
 	if p.hint != "" {
 		body = append(body, wrapText(p.hint, inner, fg(cMut))...)
 	}
-	body = append(body, fg(cDim).Render(strings.Repeat("─", inner)), keyHints("enter", "ok", "esc", "cancel", "ctrl+w", "delete word"))
+	for i, s := range p.sugs {
+		ic := icon{icFile, cHint}
+		if s.isDir {
+			ic = icon{icFolder, cAcc}
+		}
+		name, mark, st := s.name, "  ", fg(cTxt)
+		if s.isDir {
+			name += string(filepath.Separator)
+		}
+		if i == p.sugSel {
+			mark, st = fg(cAcc).Bold(true).Render("❯ "), fg(cAcc).Bold(true)
+		}
+		row := mark + fg(ic.col).Render(ic.glyph) + " " + st.Render(name)
+		if s.where != "" {
+			row += fg(cMut).Render("  " + s.where)
+		}
+		if i == p.sugSel {
+			row = lipgloss.NewStyle().Background(cDim).Render(ansi.Truncate(row, inner, "…") + strings.Repeat(" ", max(0, inner-width(row))))
+		}
+		body = append(body, ansi.Truncate(row, inner, "…"))
+	}
+	if p.more > 0 {
+		body = append(body, fg(cMut).Render(fmt.Sprintf("  … %d more · keep typing", p.more)))
+	}
+	keys := keyHints("enter", "ok", "esc", "cancel", "ctrl+w", "delete word")
+	if p.title == "Go to" {
+		keys = keyHints("enter", "go", "tab", "complete", "↑↓", "pick", "esc", "cancel")
+	}
+	body = append(body, fg(cDim).Render(strings.Repeat("─", inner)), keys)
 	box := popupBox(fg(cAcc).Bold(true).Render(icEdit+" "+p.title), w, body, fg(cAcc))
 	put(lines, (m.w-w)/2, 2, box, w)
 }

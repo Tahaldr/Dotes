@@ -159,6 +159,22 @@ func TestPrayerState(t *testing.T) {
 	if st := d.state(at("20:00")); st.nextName != "Fajr" || st.next != -1 {
 		t.Fatalf("after Isha: %+v", st)
 	}
+	// just came in: "since", up to 15 minutes (Maghrib 10)
+	if st := d.state(at("15:24")); st.nextName != "Asr" || st.word != "since" || st.in != "14m 00s" {
+		t.Fatalf("since Asr: %+v", st)
+	}
+	if st := d.state(at("15:25")); st.nextName != "Maghrib" || st.word != "in" {
+		t.Fatalf("15 min after Asr: %+v", st)
+	}
+	if st := d.state(at("17:44")); st.nextName != "Maghrib" || st.word != "since" {
+		t.Fatalf("since Maghrib: %+v", st)
+	}
+	if st := d.state(at("17:45")); st.nextName != "Isha" || st.word != "in" {
+		t.Fatalf("10 min after Maghrib: %+v", st)
+	}
+	if st := d.state(at("18:55")); st.nextName != "Isha" || st.word != "since" || st.next != 4 {
+		t.Fatalf("since Isha: %+v", st)
+	}
 	m := fresh(t)
 	m.prayer, m.now = d, at("15:09")
 	m.cfg.prayer = &prayerCfg{city: "X"}

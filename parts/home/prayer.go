@@ -98,6 +98,16 @@ type prayerState struct {
 	next     int // index of the next one today (-1 = tomorrow's Fajr)
 	nextName string
 	in       string
+	word     string // "in" (counting down) or "since" (it came in a few minutes ago)
+}
+
+// sinceFor: how long a prayer that just came in stays shown as "since" (the time
+// between the adhan and the iqama; Maghrib's is short)
+func sinceFor(name string) time.Duration {
+	if name == "Maghrib" {
+		return 10 * time.Minute
+	}
+	return 15 * time.Minute
 }
 
 func (d *prayerData) state(now time.Time) *prayerState {
@@ -135,7 +145,18 @@ func (d *prayerData) state(now time.Time) *prayerState {
 		}
 		nextAt, st.nextName = parse(tom, f), "Fajr"
 	}
+	st.word = "in"
+	last := st.next - 1 // the one that came in last (today)
+	if st.next < 0 {
+		last = len(prayerNames) - 1
+	}
 	secs := int(nextAt.Sub(now).Seconds() + 0.999)
+	if last >= 0 {
+		if ago := now.Sub(st.at[last]); ago >= 0 && ago < sinceFor(prayerNames[last]) {
+			st.next, st.nextName, st.word = last, prayerNames[last], "since"
+			secs = int(ago.Seconds())
+		}
+	}
 	switch {
 	case secs >= 3600:
 		st.in = fmt.Sprintf("%dh %02dm", secs/3600, secs%3600/60)
@@ -161,7 +182,7 @@ func (m *model) prayerBox(w int, title string) []string {
 		return nil
 	}
 	t := m.cfg.th
-	count := fg(t.mut).Render(st.nextName + " in " + st.in)
+	count := fg(t.mut).Render(st.nextName + " " + st.word + " " + st.in)
 	const col = 9
 	inner := col*5 + 2
 	if w < inner+4 {

@@ -22,7 +22,7 @@ var keyTable = []keyHelp{
 	{"Go", "gd", "Downloads", ""},
 	{"Go", "gD", "Documents", ""},
 	{"Go", "gc", "config folder (%APPDATA% / ~/.config)", ""},
-	{"Go", "g space", "type a path to go to (tab completes)", ""},
+	{"Go", "g space", "type a path to go to (suggestions as you type, tab completes, ↑↓ picks)", ""},
 	{"Go", "gf", "follow a link to where it points", ""},
 	{"Go", "gt", "open the Recycle Bin", ""},
 	{"Go", "gp", "recent projects (when opened by dotes h projects)", ""},

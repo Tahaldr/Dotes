@@ -33,7 +33,7 @@ func (m *model) snap() tabSnap {
 }
 
 func (m *model) restore(s tabSnap) {
-	m.stopSearch()
+	m.searchMoved = true
 	m.commitVisual()
 	m.cwd, m.back, m.fwd, m.filter, m.find = s.cwd, s.back, s.fwd, s.filter, s.find
 	m.virtual, m.vTitle, m.vAll, m.entries = s.virtual, s.vTitle, s.vAll, s.entries

@@ -99,7 +99,7 @@ func (m *model) showProjects() {
 		}
 		list = append(list, e)
 	}
-	m.stopSearch()
+	m.searchMoved = true
 	m.virtual, m.vTitle, m.vAll, m.entries, m.filter = "projects", "Recent projects", list, list, ""
 	m.cursor, m.top = 0, 0
 	m.parent, m.parentIdx = nil, -1

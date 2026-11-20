@@ -304,7 +304,7 @@ func (m *model) panels(iw int) []panel {
 	}
 	if st := m.prayer.state(m.now); m.cfg.prayer != nil && st != nil {
 		// the next three prayers, the next one bright; the countdown on the edge
-		p := panel{icon: icSalat, title: "Salat", badge: fg(t.acc).Render("in " + st.in)}
+		p := panel{icon: icSalat, title: "Salat", badge: fg(t.acc).Render(st.word + " " + st.in)}
 		next := st.next
 		if next < 0 {
 			next = 0 // after Isha: tomorrow's Fajr

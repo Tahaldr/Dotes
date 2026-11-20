@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -72,10 +73,17 @@ type model struct {
 	searching bool
 	vAll      []entry // every search result (the filter picks from these)
 	searchSeq int
-	bookmarks []string
-	showMarks bool
-	markCur   int
-	hintsOn   bool // the key hint bar (h on the ~ page hides it)
+	// a search runs on while you browse: the header shows it (spinner, found so far)
+	searchLabel string
+	searchDir   string
+	searchFound *atomic.Int64
+	searchSpin  int
+	searchMoved bool           // you went somewhere else while it ran
+	searchReady *searchDoneMsg // done while you were elsewhere: ctrl+s shows it
+	bookmarks   []string
+	showMarks   bool
+	markCur     int
+	hintsOn     bool // the key hint bar (h on the ~ page hides it)
 
 	// batch 4: tabs, git, file info
 	tabs     []tabSnap // empty = just one tab
@@ -250,7 +258,9 @@ func (m *model) cd(dir, hover string, record bool) {
 			m.fwd = nil
 		}
 	}
-	m.stopSearch()
+	if m.searching && dir != m.searchDir {
+		m.searchMoved = true // a running search goes on; its results wait for ctrl+s
+	}
 	m.virtual, m.vTitle, m.filter = "", "", filter
 	m.cwd, m.entries, m.hiddenN, m.readErr = dir, list, n, ""
 	if hover == "" {
@@ -459,6 +469,12 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case bulkDoneMsg:
 		m.bulkDone(msg)
 		return m, m.previewCmd()
+	case searchTickMsg:
+		if m.searching {
+			m.searchSpin++
+			return m, searchTick()
+		}
+		return m, nil
 	case taskTickMsg:
 		m.finishTasks()
 		if m.running() > 0 {
@@ -728,7 +744,6 @@ func (m *model) key(k tea.KeyPressMsg) tea.Cmd {
 			m.clearSel()
 		case m.searching:
 			m.stopSearch()
-			m.vTitle = ""
 		case m.filter != "":
 			m.filter = ""
 			m.reload()
@@ -758,10 +773,16 @@ func (m *model) key(k tea.KeyPressMsg) tea.Cmd {
 	case "S":
 		m.askSearch(true)
 	case "ctrl+s":
-		if m.searching {
+		switch {
+		case m.searching:
 			m.stopSearch()
-			m.vTitle = ""
 			m.setNote("search stopped", false)
+		case m.searchReady != nil:
+			r := *m.searchReady
+			m.searchReady = nil
+			m.cwd = r.dir
+			m.showResults(r)
+			return m.previewCmd()
 		}
 	case "z":
 		return m.fzfJump()

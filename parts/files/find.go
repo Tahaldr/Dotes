@@ -12,9 +12,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
@@ -116,6 +119,7 @@ func (m *model) findNext(from int, forward, same bool) int {
 
 type searchDoneMsg struct {
 	seq     int
+	dir     string
 	kind    string
 	query   string
 	results []entry
@@ -167,16 +171,38 @@ func (m *model) startSearch(text bool, q string) tea.Cmd {
 			cmd = exec.Command("fd", append(args, "--", q)...)
 		}
 	}
-	m.vTitle = fmt.Sprintf("searching %s for %q…", kind, q)
-	m.searching = true
+	m.searchLabel = fmt.Sprintf("searching %s for %q", kind, q)
+	m.searching, m.searchDir, m.searchMoved, m.searchReady, m.searchSpin = true, dir, false, nil, 0
+	found := &atomic.Int64{}
+	m.searchFound = found
 	if cmd != nil {
 		cmd.Dir = dir
 		m.searchCmd = cmd
 	}
-	return func() tea.Msg {
-		res, capped, err := runSearch(cmd, dir, q, text, hidden)
-		return searchDoneMsg{seq, kind, q, res, err, capped}
+	return tea.Batch(func() tea.Msg {
+		res, capped, err := runSearch(cmd, dir, q, text, hidden, found)
+		return searchDoneMsg{seq, dir, kind, q, res, err, capped}
+	}, searchTick())
+}
+
+type searchTickMsg struct{}
+
+func searchTick() tea.Cmd {
+	return tea.Tick(100*time.Millisecond, func(time.Time) tea.Msg { return searchTickMsg{} })
+}
+
+var spinFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+// searchStatus: the header's "⠹ searching names for "x" · 120 found · ctrl+s stops"
+func (m *model) searchStatus() string {
+	s := spinFrames[m.searchSpin%len(spinFrames)] + " " + m.searchLabel
+	if m.searchFound != nil {
+		s += fmt.Sprintf(" · %d found", m.searchFound.Load())
 	}
+	if m.searchMoved {
+		s += " in " + prettyPath(m.searchDir)
+	}
+	return s + " · ctrl+s stops"
 }
 
 func (m *model) stopSearch() {
@@ -185,9 +211,10 @@ func (m *model) stopSearch() {
 	}
 	m.searchCmd = nil
 	m.searching = false
+	m.searchSeq++ // what the killed search found so far is dropped
 }
 
-func runSearch(cmd *exec.Cmd, dir, q string, text, hidden bool) ([]entry, bool, error) {
+func runSearch(cmd *exec.Cmd, dir, q string, text, hidden bool, found *atomic.Int64) ([]entry, bool, error) {
 	if cmd == nil { // no fd: walk the folder ourselves
 		var out []entry
 		filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
@@ -202,6 +229,7 @@ func runSearch(cmd *exec.Cmd, dir, q string, text, hidden bool) ([]entry, bool, 
 			}
 			if smartMatch(d.Name(), q) {
 				out = append(out, resultEntry(dir, p, 0, ""))
+				found.Add(1)
 			}
 			if len(out) >= searchMax {
 				return filepath.SkipAll
@@ -239,6 +267,7 @@ func runSearch(cmd *exec.Cmd, dir, q string, text, hidden bool) ([]entry, bool, 
 		} else {
 			out = append(out, resultEntry(dir, filepath.Clean(line), 0, ""))
 		}
+		found.Store(int64(len(out)))
 		if len(out) >= searchMax {
 			capped = true
 			cmd.Process.Kill()
@@ -283,10 +312,19 @@ func (m *model) searchDone(msg searchDoneMsg) {
 	}
 	m.searchCmd, m.searching = nil, false
 	if msg.err != nil {
-		m.vTitle = ""
 		m.setNote("search failed: "+msg.err.Error(), true)
 		return
 	}
+	if m.searchMoved { // you're busy elsewhere: don't pull you away
+		m.searchReady = &msg
+		m.setNote(fmt.Sprintf("search done: %d found · ctrl+s shows them", len(msg.results)), false)
+		return
+	}
+	m.showResults(msg)
+}
+
+// showResults: the search's results become the list
+func (m *model) showResults(msg searchDoneMsg) {
 	if c := m.current(); c != nil && m.virtual == "" {
 		m.memory[m.cwd] = c.name
 	}
@@ -423,23 +461,48 @@ func (m *model) expandPath(s string) string {
 	return filepath.Clean(s)
 }
 
+// pathSug: a suggestion under "Go to": a folder or file there, or a folder zoxide knows
+type pathSug struct {
+	name, path string
+	isDir      bool
+	where      string // zoxide's: the folder it's in (shown dim)
+}
+
 func (m *model) askGoto() {
 	start := prettyPath(m.cwd)
 	if !strings.HasSuffix(start, string(filepath.Separator)) {
 		start += string(filepath.Separator)
 	}
-	m.input("Go to", "tab completes · ~, %APPDATA% and relative paths work", start, -1, func(m *model, s string) tea.Cmd {
+	m.input("Go to", "", start, -1, func(m *model, s string) tea.Cmd {
 		if strings.TrimSpace(s) == "" {
 			return nil
 		}
 		m.jumpTo(m.expandPath(s))
 		return nil
 	})
-	m.prompt.onTab = func(m *model) { m.completePath() }
+	p := m.prompt
+	p.sugSel = -1
+	if m.live { // a word with no slash also finds the folders you use (zoxide)
+		if _, err := exec.LookPath("zoxide"); err == nil {
+			if b, err := exec.Command("zoxide", "query", "--list").Output(); err == nil {
+				for _, l := range strings.Split(strings.ReplaceAll(string(b), "\r\n", "\n"), "\n") {
+					if l = strings.TrimSpace(l); l != "" {
+						p.known = append(p.known, l)
+					}
+				}
+			}
+		}
+	}
+	p.onTab = func(m *model) { m.completePath() }
+	p.onChange = func(m *model, s string) { m.suggestPaths() }
+	m.suggestPaths()
 }
 
-// completePath: tab in "Go to" finishes the folder name (or as much as all matches share)
-func (m *model) completePath() {
+const sugMax = 8
+
+// suggestPaths: what's in the folder typed so far that starts with (then contains) the
+// last part, folders first; a bare word also matches the folders zoxide knows
+func (m *model) suggestPaths() {
 	p := m.prompt
 	text := string(p.text)
 	sep := strings.LastIndexAny(text, `/\`)
@@ -447,49 +510,80 @@ func (m *model) completePath() {
 	if sep >= 0 {
 		dirPart, leaf = text[:sep+1], text[sep+1:]
 	}
+	p.sugs, p.sugSel, p.hint, p.sugFor = nil, -1, "", text
 	dir := m.cwd
 	if dirPart != "" {
 		dir = m.expandPath(dirPart)
 	}
-	des, err := os.ReadDir(dir)
-	if err != nil {
-		return
-	}
-	var hits []string
-	for _, d := range des {
-		if !d.IsDir() && !isDirPath(filepath.Join(dir, d.Name())) {
-			continue
-		}
-		if strings.HasPrefix(strings.ToLower(d.Name()), strings.ToLower(leaf)) {
-			if !m.showHidden && strings.HasPrefix(d.Name(), ".") && !strings.HasPrefix(leaf, ".") {
+	low := strings.ToLower(leaf)
+	var starts, has []pathSug
+	if des, err := os.ReadDir(dir); err == nil {
+		for _, d := range des {
+			n := d.Name()
+			if !m.showHidden && strings.HasPrefix(n, ".") && !strings.HasPrefix(leaf, ".") {
 				continue
 			}
-			hits = append(hits, d.Name())
-		}
-	}
-	switch len(hits) {
-	case 0:
-		p.hint = "no folder starts with " + leaf
-		return
-	case 1:
-		text = dirPart + hits[0] + string(filepath.Separator)
-		p.hint = ""
-	default:
-		common := hits[0]
-		for _, h := range hits[1:] {
-			for !strings.HasPrefix(strings.ToLower(h), strings.ToLower(common)) {
-				common = common[:len(common)-1]
+			full := filepath.Join(dir, n)
+			s := pathSug{name: n, path: full, isDir: d.IsDir() || isDirPath(full)}
+			switch ln := strings.ToLower(n); {
+			case strings.HasPrefix(ln, low):
+				starts = append(starts, s)
+			case low != "" && strings.Contains(ln, low):
+				has = append(has, s)
 			}
 		}
-		text = dirPart + common
-		if len(hits) > 8 {
-			p.hint = strings.Join(hits[:8], "  ") + fmt.Sprintf("  … %d more", len(hits)-8)
-		} else {
-			p.hint = strings.Join(hits, "  ")
+	}
+	dirsFirst := func(l []pathSug) {
+		sort.SliceStable(l, func(i, j int) bool { return l[i].isDir && !l[j].isDir })
+	}
+	dirsFirst(starts)
+	dirsFirst(has)
+	all := append(starts, has...)
+	if sep < 0 && leaf != "" { // a bare word: the folders you use, by name
+		seen := map[string]bool{}
+		for _, s := range all {
+			seen[strings.ToLower(s.path)] = true
 		}
+		for _, k := range p.known {
+			if b := strings.ToLower(filepath.Base(k)); strings.Contains(b, low) && !seen[strings.ToLower(k)] {
+				all = append(all, pathSug{name: filepath.Base(k), path: k, isDir: true, where: prettyPath(filepath.Dir(k))})
+			}
+		}
+	}
+	if len(all) == 0 && leaf != "" {
+		p.hint = "nothing here starts with " + leaf
+	}
+	p.more = max(0, len(all)-sugMax)
+	p.sugs = all[:min(len(all), sugMax)]
+}
+
+// completePath: tab takes the picked suggestion (the first if none): a folder gets its
+// slash so the next tab goes on inside it
+func (m *model) completePath() {
+	p := m.prompt
+	if p.sugFor != string(p.text) {
+		m.suggestPaths()
+	}
+	if len(p.sugs) == 0 {
+		return
+	}
+	s := p.sugs[max(0, p.sugSel)]
+	text := string(p.text)
+	dirPart := ""
+	if sep := strings.LastIndexAny(text, `/\`); sep >= 0 {
+		dirPart = text[:sep+1]
+	}
+	if s.where != "" { // zoxide's: the whole path
+		text = prettyPath(s.path)
+	} else {
+		text = dirPart + s.name
+	}
+	if s.isDir {
+		text += string(filepath.Separator)
 	}
 	p.text = []rune(text)
 	p.pos = len(p.text)
+	m.suggestPaths()
 }
 
 // gf: go to where a link points
@@ -516,7 +610,7 @@ func (m *model) showDrives() {
 	if c := m.current(); c != nil && m.virtual == "" {
 		m.memory[m.cwd] = c.name
 	}
-	m.stopSearch()
+	m.searchMoved = true
 	m.back = append(m.back, m.cwd)
 	m.virtual, m.vTitle, m.filter = "drives", "This PC", ""
 	m.entries = listDrives()

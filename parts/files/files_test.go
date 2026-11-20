@@ -598,3 +598,46 @@ func TestOpenWithAndConfig(t *testing.T) {
 		t.Fatalf("config: %+v", c)
 	}
 }
+
+// g space: suggestions as you type, ↑↓ picks one, enter goes there
+func TestGotoSuggestions(t *testing.T) {
+	d := testTree(t)
+	m := newModel(d)
+	run(m, "g", "space")
+	if len(m.prompt.sugs) == 0 || m.prompt.sugs[0].name != "empty" && m.prompt.sugs[0].name != "src" {
+		t.Fatalf("folders first: %+v", m.prompt.sugs)
+	}
+	run(m, "i", "m", "g")
+	if len(m.prompt.sugs) != 2 || m.prompt.sugs[0].isDir {
+		t.Fatalf("img: %+v", m.prompt.sugs)
+	}
+	run(m, "ctrl+u")
+	o := run(m, append(typeKeys(d+string(filepath.Separator)+"rc"), "down")...)
+	if !strings.Contains(o, "src") || m.prompt.sugSel != 0 { // "rc" is inside "src"
+		t.Fatalf("contains match:\n%s", o)
+	}
+	run(m, "enter")
+	if filepath.Base(m.cwd) != "src" {
+		t.Fatalf("enter on the picked one: %s", m.cwd)
+	}
+}
+
+// a search runs on while you browse; its results wait for ctrl+s instead of pulling you away
+func TestSearchWhileBrowsing(t *testing.T) {
+	d := testTree(t)
+	m := newModel(d)
+	run(m)
+	cmd := m.startSearch(false, "a.txt")
+	m.cd(filepath.Join(d, "src"), "", true) // you go somewhere while it runs
+	if o := run(m); !strings.Contains(o, "searching names") || !m.searching {
+		t.Fatalf("the header should show the search:\n%s", o)
+	}
+	drain(m, cmd)
+	if m.virtual == "search" || m.searchReady == nil || !strings.Contains(m.note, "ctrl+s") {
+		t.Fatalf("results should wait: %v %q", m.virtual, m.note)
+	}
+	run(m, "ctrl+s")
+	if m.virtual != "search" || len(m.entries) != 1 || m.cwd != d {
+		t.Fatalf("ctrl+s shows them: %v %v", m.virtual, names(m))
+	}
+}

@@ -272,7 +272,7 @@ func (m *model) header() string {
 		left = " " + fg(cAcc).Render(icSearch) + "  " + fg(cHint).Render(prettyPath(m.cwd)+"  ") + fg(cAcc).Bold(true).Render(m.vTitle)
 	}
 	if m.searching {
-		left += "  " + fg(cYellow).Render(icSearch+" "+m.vTitle+"  ctrl+s stops")
+		left += "  " + fg(cYellow).Render(m.searchStatus())
 	}
 	if m.virtual == "" && m.bookmarkIndex(m.cwd) >= 0 {
 		left += "  " + fg(cYellow).Render(icBookmark)

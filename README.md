@@ -191,8 +191,10 @@ dotes --help    everything
 | `h` `l` | parent folder / open |
 | `gg` `G` | top / bottom |
 | `z` / `Z` | jump with fzf / zoxide |
+| `g` `space` | type a path: suggestions as you type, `tab` completes, `↑↓` picks |
 | `b` / `'` | bookmark / bookmarks |
 | `f` `/` `s` `S` | filter, find, search names, search text |
+| `ctrl+s` | stop a search, or show its results if it finished while you browsed |
 | `space` `v` | select, visual select |
 | `y` `x` `p` `d` | copy, cut, paste, trash (`u` undoes) |
 | `a` `r` | create, rename |
@@ -266,7 +268,7 @@ prayer = Casablanca | Morocco | 21
 ```
 
 City, country and a [calculation method](https://aladhan.com/calculation-methods)
-(21 = Morocco). Casablanca is the default; change it to your city, or leave it empty (`prayer =`) to turn prayer times off. The month is downloaded once and kept, so Home never waits.
+(21 = Morocco). Casablanca is the default; change it to your city, or leave it empty (`prayer =`) to turn prayer times off. The month is downloaded once and kept, so Home never waits. A prayer that just came in shows "since" instead of "in" for 15 minutes (Maghrib 10), the time until the iqama.
 </details>
 
 <details>

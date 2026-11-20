@@ -67,6 +67,9 @@ func ParseInput(a string) tea.Msg {
 	if strings.HasPrefix(a, "alt+") && len(a) > 4 {
 		return tea.KeyPressMsg{Code: []rune(a[4:])[0], Mod: tea.ModAlt}
 	}
+	if a == "" {
+		return nil
+	}
 	r := []rune(a)[0]
 	return tea.KeyPressMsg{Code: r, Text: a}
 }
