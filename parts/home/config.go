@@ -260,6 +260,10 @@ func loadConfig() config {
 		c.logo = readLogo(app.File(logoName))
 		if c.logo == nil && logoName == "home-logo.txt" {
 			c.logo = strings.Split(defaultLogo, "\n")
+			// first run: write it out so it's there to see and change
+			if os.MkdirAll(app.Dir(), 0o755) == nil {
+				os.WriteFile(app.File(logoName), []byte(defaultLogo+"\n"), 0o644)
+			}
 		} else if c.logo == nil {
 			c.warnings = append(c.warnings, "logo file '"+logoName+"' not found")
 		}

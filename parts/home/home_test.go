@@ -232,3 +232,15 @@ func TestWithBg(t *testing.T) {
 		t.Fatalf("%q", s)
 	}
 }
+
+// a first run writes the default logo out, so it's there to see and change
+func TestDefaultLogoWritten(t *testing.T) {
+	os.Remove(configFile())
+	os.Remove(app.File("home-logo.txt"))
+	c := loadConfig()
+	b, err := os.ReadFile(app.File("home-logo.txt"))
+	if err != nil || strings.TrimSpace(string(b)) != defaultLogo || len(c.logo) != 2 {
+		t.Fatalf("logo not written: %v %q %v", err, b, c.logo)
+	}
+	os.Remove(app.File("home-logo.txt"))
+}
