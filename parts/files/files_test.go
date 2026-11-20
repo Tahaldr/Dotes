@@ -628,7 +628,7 @@ func TestSearchWhileBrowsing(t *testing.T) {
 	m := newModel(d)
 	run(m)
 	cmd := m.startSearch(false, "a.txt")
-	m.cd(filepath.Join(d, "src"), "", true) // you go somewhere while it runs
+	m.cd(filepath.Join(d, "src"), "", true)                          // you go somewhere while it runs
 	m.cwd = filepath.Join(d, strings.Repeat("long-folder-name-", 8)) // a long path gives way
 	if o := run(m); !strings.Contains(o, "searching names") || !m.searching {
 		t.Fatalf("the header should show the search:\n%s", o)
