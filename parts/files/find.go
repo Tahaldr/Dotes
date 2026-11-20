@@ -200,7 +200,7 @@ func (m *model) searchStatus() string {
 		s += fmt.Sprintf(" · %d found", m.searchFound.Load())
 	}
 	if m.searchMoved {
-		s += " in " + prettyPath(m.searchDir)
+		s += " in " + filepath.Base(m.searchDir)
 	}
 	return s + " · ctrl+s stops"
 }

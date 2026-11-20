@@ -271,9 +271,6 @@ func (m *model) header() string {
 	case "search":
 		left = " " + fg(cAcc).Render(icSearch) + "  " + fg(cHint).Render(prettyPath(m.cwd)+"  ") + fg(cAcc).Bold(true).Render(m.vTitle)
 	}
-	if m.searching {
-		left += "  " + fg(cYellow).Render(m.searchStatus())
-	}
 	if m.virtual == "" && m.bookmarkIndex(m.cwd) >= 0 {
 		left += "  " + fg(cYellow).Render(icBookmark)
 	}
@@ -299,6 +296,13 @@ func (m *model) header() string {
 		pos = fmt.Sprintf("%d/%d", m.cursor+1, len(m.entries))
 	}
 	right += fg(cMut).Render(pos) + " "
+	if m.searching { // always in view: the path gives way to it
+		st := "  " + fg(cYellow).Render(m.searchStatus())
+		if room := m.w - width(st) - width(right) - 2; width(left) > room {
+			left = trunc(left, max(0, room))
+		}
+		left += st
+	}
 	return spread(left, right, m.w)
 }
 
