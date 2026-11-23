@@ -5,7 +5,6 @@ package files
 // width, and scrolls sideways (h / l) for what's wider than the window.
 
 import (
-	"encoding/csv"
 	"fmt"
 	"os"
 	"os/exec"
@@ -44,12 +43,44 @@ func (m *model) openReader() tea.Cmd {
 
 func (m *model) readerLoad() tea.Cmd {
 	e, hidden := m.rd.e, m.showHidden
-	load := func() tea.Msg { return readerMsg{e.path, makePreviewLim(e, hidden, fullLimits)} }
+	load := func() tea.Msg { return readerMsg{e.path, makeFullPreview(e, hidden)} }
 	if m.dump {
 		m.update(load())
 		return nil
 	}
 	return load
+}
+
+// makeFullPreview: the file read for full screen; spreadsheets become a grid
+func makeFullPreview(e entry, hidden bool) preview {
+	ext := strings.ToLower(filepath.Ext(e.name))
+	if isSheetExt(ext) {
+		p := preview{key: previewKey(e, hidden)}
+		f, sheets, err := loadSheets(e.path, 1_000_000)
+		if err != nil {
+			p.lines = []string{fg(cRed).Render("can't read: ") + fg(cMut).Render(err.Error())}
+			return p
+		}
+		if len(sheets) == 0 {
+			sheets = []sheet{{name: "Sheet1"}}
+		}
+		p.kind, p.grid = "sheet", newGrid(f, sheets)
+		return p
+	}
+	p := makePreviewLim(e, hidden, fullLimits)
+	if p.kind == "csv" {
+		tab := ext == ".tsv" || strings.Contains(strings.SplitN(p.src, "\n", 2)[0], "\t")
+		p.grid = newGrid(nil, []sheet{{name: e.name, rows: csvRows(p.src, tab, 1_000_000)}})
+	}
+	return p
+}
+
+// closeReader: back to the columns
+func (m *model) closeReader() {
+	if m.rd != nil && m.rd.p.grid != nil && m.rd.p.grid.file != nil {
+		m.rd.p.grid.file.Close()
+	}
+	m.rd = nil
 }
 
 // readerCheck: the file changed on disk (an editor, another window): read it again
@@ -72,6 +103,16 @@ func (m *model) readerGot(msg readerMsg) {
 	if r == nil || r.e.path != msg.path {
 		return
 	}
+	if old := r.p.grid; old != nil && msg.p.grid != nil { // read again: stay where you were
+		g := msg.p.grid
+		g.header, g.filter, g.find, g.sortCol, g.sortDesc = old.header, old.filter, old.find, old.sortCol, old.sortDesc
+		g.cur = min(old.cur, len(g.sheets)-1)
+		g.rebuild()
+		g.r, g.c = min(old.r, max(0, len(g.view)-1)), min(old.c, max(0, len(g.widths)-1))
+		if old.file != nil {
+			old.file.Close()
+		}
+	}
 	r.p, r.loading, r.lines, r.w = msg.p, false, nil, 0
 }
 
@@ -85,8 +126,6 @@ func (m *model) readerLines(w, h int) []string {
 	switch r.p.kind {
 	case "md":
 		r.lines, r.wraps = renderMarkdown(r.p.src, w), true
-	case "csv":
-		r.lines = csvTable(r.p.src, strings.Contains(strings.SplitN(r.p.src, "\n", 2)[0], "\t"))
 	case "image":
 		if m.gfx == "sixel" && !m.popupOpen() {
 			r.lines = m.sixelPreview(&r.p, w, h, 1, m.bodyY)
@@ -106,6 +145,10 @@ func (m *model) readerView() string {
 	m.imgWant = imgSpot{}
 	r := m.rd
 	hints := []string{" " + keyHints("j/k", "scroll", "h/l", "sideways", "g/G", "top/end", "e", "edit", "o", "open", "E", "Explorer", "q", "back")}
+	if r.p.grid != nil && !r.loading {
+		hints = []string{" " + keyHints("hjkl", "move", "tab / [ ]", "sheets", "/ n", "find", "f", "filter", "s", "sort by column", "t", "header row"),
+			" " + keyHints("y / Y", "copy cell / row", "x", "save sheet as csv", "e", "edit", "o", "open", "E", "Explorer", "esc", "clear", "q", "back")}
+	}
 	if !m.hintsOn {
 		hints = []string{" " + keyHints("q", "back", "F1", "keys")}
 	}
@@ -120,6 +163,11 @@ func (m *model) readerView() string {
 	right := ""
 	if r.loading {
 		body[0] = " " + fg(cMut).Render("reading…")
+	} else if g := r.p.grid; g != nil {
+		body = g.render(m.w-1, h, m.bodyY)
+		for i := range body {
+			body[i] = trunc(body[i], m.w)
+		}
 	} else {
 		lines := m.readerLines(w, h)
 		widest := 0
@@ -169,7 +217,7 @@ func (m *model) readerKey(s string) tea.Cmd {
 	r := m.rd
 	switch s {
 	case "q", "esc", "F", "backspace":
-		m.rd = nil
+		m.closeReader()
 	case "j", "down":
 		r.top++
 	case "k", "up":
@@ -209,7 +257,7 @@ func (m *model) readerKey(s string) tea.Cmd {
 	case "~", "f1":
 		m.help = true
 	case "ctrl+c":
-		m.rd = nil
+		m.closeReader()
 	}
 	return nil
 }
@@ -247,67 +295,4 @@ func (m *model) showInExplorer(path string) {
 		return
 	}
 	m.setNote("shown in Explorer: "+filepath.Base(path), false)
-}
-
-// csvTable draws csv / tsv text as a table, every column as wide as its widest cell
-// (at most 120), with row numbers: made to scroll sideways, not to fit the window
-func csvTable(text string, tab bool) []string {
-	r := csv.NewReader(strings.NewReader(text))
-	if tab {
-		r.Comma = '\t'
-	}
-	r.FieldsPerRecord = -1
-	r.LazyQuotes = true
-	var rows [][]string
-	var widths []int
-	for {
-		rec, err := r.Read()
-		if err != nil {
-			if pe, ok := err.(*csv.ParseError); ok && pe.Err != nil && len(rec) == 0 && len(rows) > 0 {
-				continue
-			}
-			break
-		}
-		for i := range rec {
-			rec[i] = strings.Join(strings.Fields(rec[i]), " ") // one line per cell
-			if i >= len(widths) {
-				widths = append(widths, 0)
-			}
-			widths[i] = max(widths[i], min(120, ansi.StringWidth(rec[i])))
-		}
-		rows = append(rows, rec)
-	}
-	if len(rows) == 0 {
-		return []string{fg(cMut).Render("(no rows)")}
-	}
-	num := len(fmt.Sprint(len(rows)))
-	sep := fg(cDim).Render(" │ ")
-	out := make([]string, 0, len(rows)+1)
-	for ri, rec := range rows {
-		cells := make([]string, len(widths))
-		for i := range widths {
-			v := ""
-			if i < len(rec) {
-				v = rec[i]
-			}
-			st := fg(cTxt)
-			if ri == 0 {
-				st = fg(cAcc).Bold(true)
-			}
-			cells[i] = pad(st.Render(trunc(v, widths[i])), widths[i])
-		}
-		n := fmt.Sprintf("%*d", num, ri)
-		if ri == 0 {
-			n = strings.Repeat(" ", num)
-		}
-		out = append(out, fg(cDim).Render(n)+sep+strings.Join(cells, sep))
-		if ri == 0 {
-			parts := make([]string, len(widths))
-			for i, w := range widths {
-				parts[i] = strings.Repeat("─", w)
-			}
-			out = append(out, fg(cDim).Render(strings.Repeat("─", num)+"─┼─"+strings.Join(parts, "─┼─")))
-		}
-	}
-	return out
 }

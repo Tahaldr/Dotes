@@ -82,7 +82,7 @@ and the next prayer times.
 ### 📁 Files
 A [yazi](https://github.com/sxyazi/yazi)-style file manager: three columns, previews
 (code, Markdown, images, archives), tabs, bookmarks, fuzzy jumps, git marks, the
-Recycle Bin, bulk rename in your editor, and undo. `F` reads a file full screen; drag the
+Recycle Bin, bulk rename in your editor, and undo. `F` reads a file full screen (csv and Excel as a grid with sheets); drag the
 lines between the columns to resize them.
 
 `hjkl` move · `/` find · `z` jump · `space` select · `y` `x` `p` copy, cut, paste
@@ -201,7 +201,7 @@ dotes --help    everything
 | `a` `r` | create, rename |
 | `tt` `1`-`9` | new tab, go to tab |
 | `gi` `gn` | open in Git, project note in Notes |
-| `F` | read the file full screen (tables at full width, `h` `l` scroll sideways) |
+| `F` | read the file full screen; csv and Excel open as a grid: `tab` sheets, `/` find, `f` filter, `s` sort, `y` copy, `x` save as csv |
 | `E` | show it in Explorer |
 | drag a `│` | resize the columns (`=` puts them back) |
 </details>

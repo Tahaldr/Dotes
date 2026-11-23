@@ -37,6 +37,9 @@ var (
 // richPreview fills p for files that aren't plain text; false = not one of those
 func richPreview(p *preview, e entry, ext string) bool {
 	switch {
+	case isSheetExt(ext):
+		sheetPreview(p, e)
+		return true
 	case imageExt[ext]:
 		img, err := loadImage(e.path)
 		if err != nil {

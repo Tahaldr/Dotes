@@ -3,6 +3,7 @@ package files
 import (
 	"archive/zip"
 	"fmt"
+	"github.com/xuri/excelize/v2"
 	"image"
 	"image/png"
 	"os"
@@ -645,22 +646,78 @@ func TestSearchWhileBrowsing(t *testing.T) {
 
 func TestFullScreenReader(t *testing.T) {
 	d := testTree(t)
-	long := strings.Repeat("x", 95)
-	os.WriteFile(filepath.Join(d, "a.csv"), []byte("id,name,notes\n1,Sara,"+long+"END\n"), 0o644)
+	os.WriteFile(filepath.Join(d, "notes.md"), []byte("# Title\n\nsome words\n"), 0o644)
 	m := newModel(d)
-	m.moveToName("a.csv")
+	m.moveToName("notes.md")
 	out := run(m, "F")
-	if m.rd == nil || !strings.Contains(out, "│ name") || !strings.Contains(out, "col 1") {
-		t.Fatalf("csv full screen: a table that scrolls sideways:\n%s", out)
-	}
-	out = run(m, "L") // to the right end
-	if !strings.Contains(out, "END") {
-		t.Fatalf("L should show the end of the row:\n%s", out)
+	if m.rd == nil || !strings.Contains(out, "some words") {
+		t.Fatalf("markdown full screen:\n%s", out)
 	}
 	run(m, "q")
 	if m.rd != nil {
 		t.Fatal("q should leave full screen")
 	}
+}
+
+func TestSheetGrid(t *testing.T) {
+	d := testTree(t)
+	long := strings.Repeat("x", 95)
+	os.WriteFile(filepath.Join(d, "a.csv"), []byte("city,sales,notes\nRabat,30,a\nTanger,1000,"+long+"END\nFes,7,c\n"), 0o644)
+	m := newModel(d)
+	m.moveToName("a.csv")
+	out := run(m, "F")
+	if m.rd == nil || m.rd.p.grid == nil || !strings.Contains(out, "│ sales") || !strings.Contains(out, "A2  city  Rabat") {
+		t.Fatalf("csv full screen should be a grid:\n%s", out)
+	}
+	out = run(m, "j", "$") // the long cell: whole at the bottom
+	if !strings.Contains(out, "C3  notes  "+long[:40]) {
+		t.Fatalf("the cell bar should show the whole cell:\n%s", out)
+	}
+	out = run(m, "0", "l", "s", "s", "g") // sort by sales, biggest first
+	g := m.rd.p.grid
+	if g.cell(g.view[0], 0) != "Tanger" || !strings.Contains(out, "B ↑") {
+		t.Fatalf("s s should sort by B, biggest first: %v\n%s", g.view, out)
+	}
+	run(m, "f", "type:fes", "enter")
+	if len(g.view) != 1 || g.cell(g.view[0], 0) != "Fes" {
+		t.Fatalf("filter: %v", g.view)
+	}
+	run(m, "esc")
+	if len(g.view) != 3 || g.sortCol != -1 {
+		t.Fatalf("esc should clear the filter and sort: %v", g.view)
+	}
+	run(m, "x")
+	if !strings.Contains(m.note, "a (1).csv") {
+		t.Fatalf("x should save the sheet as csv: %q", m.note)
+	}
+}
+
+func TestExcelSheets(t *testing.T) {
+	d := testTree(t)
+	f := excelize.NewFile()
+	f.SetSheetRow("Sheet1", "A1", &[]any{"name", "amount"})
+	f.SetSheetRow("Sheet1", "A2", &[]any{"Sara", 9})
+	f.NewSheet("Totals")
+	f.SetCellValue("Totals", "A1", "sum")
+	f.SetCellFormula("Totals", "B1", "Sheet1!B2*2")
+	if err := f.SaveAs(filepath.Join(d, "book.xlsx")); err != nil {
+		t.Fatal(err)
+	}
+	m := newModel(d)
+	m.moveToName("book.xlsx")
+	out := run(m)
+	if !strings.Contains(out, "2 sheets") {
+		t.Fatalf("the side preview should list the sheets:\n%s", out)
+	}
+	out = run(m, "F")
+	if !strings.Contains(out, "Totals") || !strings.Contains(out, "Sara") {
+		t.Fatalf("Excel full screen:\n%s", out)
+	}
+	out = run(m, "tab", "l")
+	if m.rd.p.grid.cur != 1 || !strings.Contains(out, "=Sheet1!B2*2") {
+		t.Fatalf("tab should go to the next sheet, the bar shows the formula:\n%s", out)
+	}
+	run(m, "q")
 }
 
 func TestDragColumns(t *testing.T) {

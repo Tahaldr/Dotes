@@ -45,6 +45,7 @@ type preview struct {
 	rendW int
 	rendH int
 	rend  []string
+	grid  *grid // spreadsheets full screen
 }
 
 // previewKey changes when the file changes, so the cache never shows old content

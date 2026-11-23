@@ -599,6 +599,9 @@ func (m *model) key(k tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	if m.rd != nil {
+		if m.rd.p.grid != nil {
+			return m.gridKey(s)
+		}
 		return m.readerKey(s)
 	}
 
@@ -999,6 +1002,9 @@ func (m *model) click(c tea.MouseClickMsg) tea.Cmd {
 		return nil
 	}
 	if m.rd != nil {
+		if m.rd.p.grid != nil && !m.help {
+			m.gridClick(c.X, c.Y)
+		}
 		return nil
 	}
 	if m.dragStart(c.X, c.Y) {
@@ -1057,6 +1063,10 @@ func (m *model) click(c tea.MouseClickMsg) tea.Cmd {
 
 func (m *model) wheel(w tea.MouseWheelMsg) {
 	if m.prompt != nil || m.question != nil || m.showTasks || m.showMarks || m.spot != nil || m.menu != nil {
+		return
+	}
+	if m.rd != nil && !m.help && m.rd.p.grid != nil {
+		m.gridWheel(w)
 		return
 	}
 	if m.rd != nil && !m.help {
