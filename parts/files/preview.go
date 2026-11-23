@@ -5,6 +5,7 @@ package files
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Tahaldr/dotes/internal/md"
 	"image"
@@ -16,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"unicode/utf16"
 	"unicode/utf8"
 
@@ -46,6 +48,13 @@ type preview struct {
 	rendH int
 	rend  []string
 	grid  *grid // spreadsheets full screen
+	retry bool  // another app had the file locked: read it again in a moment
+}
+
+// busy: Windows says another program has the file open without sharing it
+func busy(err error) bool {
+	var errno syscall.Errno
+	return errors.As(err, &errno) && (errno == 32 || errno == 33) // sharing / lock violation
 }
 
 // previewKey changes when the file changes, so the cache never shows old content
@@ -102,6 +111,10 @@ func makePreviewLim(e entry, showHidden bool, lim limits) preview {
 	data, err := readHeadN(e.path, lim.bytes)
 	if err != nil {
 		p.lines = []string{fg(cRed).Render("can't read: ") + fg(cMut).Render(errText(err))}
+		if busy(err) {
+			p.retry = true
+			p.lines = []string{fg(cYellow).Render("another app is using it right now: trying again")}
+		}
 		return p
 	}
 	text, ok := asText(data)

@@ -120,9 +120,12 @@ type model struct {
 	cols  [2]float64 // column widths dragged with the mouse: parent, current (0 = the usual 1 : 4 : 3)
 	drag  int        // 1 / 2: dragging the line after the parent / current column
 	avail int        // the columns' width, without the lines between them
+
+	retries map[string]int // busy files: how many times their preview was tried
 }
 
 type previewMsg struct{ p preview }
+type previewRetryMsg struct{ key string }
 type tickMsg struct{ fromWatch bool }
 type editorDoneMsg struct{ err error }
 
@@ -447,9 +450,28 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case readerMsg:
 		m.readerGot(msg)
 		return m, nil
+	case previewRetryMsg:
+		if c := m.current(); c != nil && previewKey(*c, m.showHidden) == msg.key && m.pv.key == msg.key {
+			m.pv = preview{} // read it again
+			return m, m.previewCmd()
+		}
+		return m, nil
 	case previewMsg:
 		if len(m.cache) > 300 {
 			m.cache = map[string]preview{}
+		}
+		if msg.p.retry { // a busy file: not kept, read again in a second (for a minute)
+			if c := m.current(); c != nil && previewKey(*c, m.showHidden) == msg.p.key {
+				m.pv = msg.p
+			}
+			if m.retries == nil {
+				m.retries = map[string]int{}
+			}
+			if m.retries[msg.p.key]++; m.retries[msg.p.key] <= 60 && !m.dump {
+				key := msg.p.key
+				return m, tea.Tick(time.Second, func(time.Time) tea.Msg { return previewRetryMsg{key} })
+			}
+			return m, nil
 		}
 		m.cache[msg.p.key] = msg.p
 		if c := m.current(); c != nil && previewKey(*c, m.showHidden) == msg.p.key {

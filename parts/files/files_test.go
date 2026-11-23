@@ -733,3 +733,35 @@ func TestDragColumns(t *testing.T) {
 		t.Fatalf("= should put the widths back: %d, want %d", m.colX[1][1], sep)
 	}
 }
+
+func TestSheetTabsScrollAndCellPopup(t *testing.T) {
+	d := testTree(t)
+	f := excelize.NewFile()
+	f.SetSheetName("Sheet1", "First sheet with a long name")
+	for i := 2; i <= 12; i++ {
+		f.NewSheet(fmt.Sprintf("Another long sheet %d", i))
+	}
+	long := strings.Repeat("word ", 40) + "LAST"
+	f.SetSheetRow("First sheet with a long name", "A1", &[]any{"head", "text"})
+	f.SetSheetRow("First sheet with a long name", "A2", &[]any{"x", long})
+	if err := f.SaveAs(filepath.Join(d, "many.xlsx")); err != nil {
+		t.Fatal(err)
+	}
+	m := newModel(d)
+	m.moveToName("many.xlsx")
+	out := run(m, "F", "l", "enter")
+	if !m.rd.p.grid.cellOpen || !strings.Contains(out, "LAST") {
+		t.Fatalf("enter should show the whole cell:\n%s", out)
+	}
+	run(m, "esc", "shift+tab") // the last sheet: its tab must be on screen
+	if m.rd.p.grid.cur != 11 {
+		t.Fatalf("shift+tab from the first sheet: sheet %d", m.rd.p.grid.cur)
+	}
+	if x := m.rd.p.grid.tabXs[11]; x[1] == 0 || x[1] > m.w {
+		t.Fatalf("the current sheet's tab should be in sight: %v", x)
+	}
+	out = run(m)
+	if !strings.Contains(out, "Another long sheet 12") || !strings.Contains(out, "‹") {
+		t.Fatalf("tabs should scroll to the last sheet:\n%s", out)
+	}
+}

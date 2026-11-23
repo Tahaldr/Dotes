@@ -201,7 +201,7 @@ dotes --help    everything
 | `a` `r` | create, rename |
 | `tt` `1`-`9` | new tab, go to tab |
 | `gi` `gn` | open in Git, project note in Notes |
-| `F` | read the file full screen; csv and Excel open as a grid: `tab` sheets, `/` find, `f` filter, `s` sort, `y` copy, `x` save as csv |
+| `F` | read the file full screen; csv and Excel open as a grid: `tab` sheets, `enter` the whole cell, `/` find, `f` filter, `s` sort, `y` copy, `x` save as csv |
 | `E` | show it in Explorer |
 | drag a `│` | resize the columns (`=` puts them back) |
 </details>

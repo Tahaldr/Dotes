@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -23,6 +24,7 @@ type reader struct {
 	lines     []string // drawn for width w
 	w         int
 	wraps     bool // markdown: wrapped to the window, nothing to scroll sideways
+	tries     int  // reads of a busy file
 }
 
 type readerMsg struct {
@@ -58,7 +60,7 @@ func makeFullPreview(e entry, hidden bool) preview {
 		p := preview{key: previewKey(e, hidden)}
 		f, sheets, err := loadSheets(e.path, 1_000_000)
 		if err != nil {
-			p.lines = []string{fg(cRed).Render("can't read: ") + fg(cMut).Render(err.Error())}
+			p.lines = readError(&p, err)
 			return p
 		}
 		if len(sheets) == 0 {
@@ -114,6 +116,10 @@ func (m *model) readerGot(msg readerMsg) {
 		}
 	}
 	r.p, r.loading, r.lines, r.w = msg.p, false, nil, 0
+	if msg.p.retry && r.tries < 60 { // busy: the next check reads it again
+		r.tries++
+		r.e.mod = time.Time{}
+	}
 }
 
 // readerLines: the file drawn for width w (kept until the width or the file changes)

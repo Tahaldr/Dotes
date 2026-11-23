@@ -14,10 +14,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -44,10 +46,17 @@ type grid struct {
 	widths    []int
 
 	// where things were drawn (mouse)
-	tabXs [][2]int
-	colXs [][3]int // x start, x end, column
-	rowY  int      // screen row of view[top]
-	tabY  int
+	tabXs   [][2]int
+	tabLeft int // the first sheet tab shown
+
+	// enter: the whole cell in a popup
+	cellOpen   bool
+	cellScroll int
+	lastClick  [2]int
+	lastClickT time.Time
+	colXs      [][3]int // x start, x end, column
+	rowY       int      // screen row of view[top]
+	tabY       int
 }
 
 func isSheetExt(ext string) bool { return ext == ".xlsx" || ext == ".xlsm" }
@@ -218,17 +227,6 @@ func (g *grid) render(w, h, y0 int) []string {
 
 	// sheet tabs
 	g.tabY, g.tabXs = y0, nil
-	tabs, x := " ", 1
-	for i, s := range g.sheets {
-		label := " " + s.name + " "
-		st := fg(cMut)
-		if i == g.cur {
-			st = lipgloss.NewStyle().Background(cAcc).Foreground(cBg).Bold(true)
-		}
-		g.tabXs = append(g.tabXs, [2]int{x, x + width(label)})
-		tabs += st.Render(label) + " "
-		x += width(label) + 1
-	}
 	var info []string
 	if g.filter != "" {
 		info = append(info, fg(cYellow).Render(icFilter+" "+g.filter))
@@ -241,7 +239,8 @@ func (g *grid) render(w, h, y0 int) []string {
 		info = append(info, fg(cHint).Render(icSort+" "+colName(g.sortCol)+" "+arrow))
 	}
 	info = append(info, fg(cMut).Render(plural(len(g.view), "row")+" · "+plural(len(g.widths), "column")))
-	out = append(out, spread(tabs, strings.Join(info, "   ")+" ", w))
+	right := strings.Join(info, "   ") + " "
+	out = append(out, spread(g.tabRow(w-width(right)-2), right, w))
 
 	if len(sh.rows) == 0 {
 		out = append(out, "", " "+fg(cMut).Render("(empty sheet)"))
@@ -367,6 +366,49 @@ func (g *grid) render(w, h, y0 int) []string {
 	return out
 }
 
+// tabRow: the sheet tabs that fit in w, scrolled so the current one is always in sight
+// (‹ › show there are more)
+func (g *grid) tabRow(w int) string {
+	g.tabXs = make([][2]int, len(g.sheets))
+	labels := make([]string, len(g.sheets))
+	for i, s := range g.sheets {
+		labels[i] = " " + trunc(s.name, 30) + " "
+	}
+	fits := func(from, to int) bool { // tabs from..to and the arrows, in w
+		n := 2 + 2 // " ‹" and " ›"
+		for i := from; i <= to; i++ {
+			n += width(labels[i]) + 1
+		}
+		return n <= w
+	}
+	g.tabLeft = max(0, min(g.tabLeft, g.cur))
+	for g.tabLeft < g.cur && !fits(g.tabLeft, g.cur) {
+		g.tabLeft++
+	}
+	out, x := " ", 1
+	if g.tabLeft > 0 {
+		out, x = " "+fg(cAcc).Render("‹")+" ", 3
+	}
+	last := g.tabLeft
+	for i := g.tabLeft; i < len(g.sheets); i++ {
+		if i > g.tabLeft && !fits(g.tabLeft, i) {
+			break
+		}
+		st := fg(cMut)
+		if i == g.cur {
+			st = lipgloss.NewStyle().Background(cAcc).Foreground(cBg).Bold(true)
+		}
+		g.tabXs[i] = [2]int{x, x + width(labels[i])}
+		out += st.Render(labels[i]) + " "
+		x += width(labels[i]) + 1
+		last = i
+	}
+	if last < len(g.sheets)-1 {
+		out += fg(cAcc).Render("›") + fg(cMut).Render(fmt.Sprintf(" %d more", len(g.sheets)-1-last))
+	}
+	return out
+}
+
 func (g *grid) curRow() int {
 	if g.r < 0 || g.r >= len(g.view) {
 		return -1
@@ -404,6 +446,27 @@ func (g *grid) cellBar(w int) string {
 
 func (m *model) gridKey(s string) tea.Cmd {
 	g := m.rd.p.grid
+	if g.cellOpen {
+		switch s {
+		case "esc", "q", "enter", "space", " ", "v":
+			g.cellOpen = false
+		case "j", "down":
+			g.cellScroll++
+		case "k", "up":
+			g.cellScroll = max(0, g.cellScroll-1)
+		case "ctrl+d", "pgdown":
+			g.cellScroll += 10
+		case "ctrl+u", "pgup":
+			g.cellScroll = max(0, g.cellScroll-10)
+		case "y":
+			m.gridCopy(g.cell(g.curRow(), g.c), "cell")
+		case "h", "left", "l", "right", "tab", "shift+tab": // the next cell, popup still open
+			g.cellOpen = false
+			m.gridKey(s)
+			g.cellOpen, g.cellScroll = true, 0
+		}
+		return nil
+	}
 	page := max(1, m.bodyH-6)
 	switch s {
 	case "j", "down":
@@ -414,7 +477,11 @@ func (m *model) gridKey(s string) tea.Cmd {
 		g.c = min(len(g.widths)-1, g.c+1)
 	case "h", "left":
 		g.c = max(0, g.c-1)
-	case "ctrl+d", "pgdown", "space", " ":
+	case "enter", "space", " ", "v":
+		if g.curRow() >= 0 {
+			g.cellOpen, g.cellScroll = true, 0
+		}
+	case "ctrl+d", "pgdown":
 		g.r = min(len(g.view)-1, g.r+page)
 	case "ctrl+u", "pgup":
 		g.r = max(0, g.r-page)
@@ -619,6 +686,11 @@ func (m *model) gridClick(x, y int) {
 	}
 	for _, c := range g.colXs {
 		if x >= c[0]-1 && x <= c[1]+1 {
+			at := [2]int{vi, c[2]}
+			if at == g.lastClick && time.Since(g.lastClickT) < 450*time.Millisecond || (m.dump && g.r == vi && g.c == c[2]) {
+				g.cellOpen, g.cellScroll = true, 0 // double-click: the whole cell
+			}
+			g.lastClick, g.lastClickT = at, time.Now()
 			g.r, g.c = vi, c[2]
 			return
 		}
@@ -627,6 +699,14 @@ func (m *model) gridClick(x, y int) {
 
 func (m *model) gridWheel(w tea.MouseWheelMsg) {
 	g := m.rd.p.grid
+	if g.cellOpen {
+		if w.Button == tea.MouseWheelDown {
+			g.cellScroll += 3
+		} else if w.Button == tea.MouseWheelUp {
+			g.cellScroll = max(0, g.cellScroll-3)
+		}
+		return
+	}
 	side := w.Mod&tea.ModShift != 0
 	switch {
 	case w.Button == tea.MouseWheelRight || (side && w.Button == tea.MouseWheelDown):
@@ -644,7 +724,7 @@ func (m *model) gridWheel(w tea.MouseWheelMsg) {
 func sheetPreview(p *preview, e entry) {
 	f, sheets, err := loadSheets(e.path, 60)
 	if err != nil {
-		p.lines = append(infoCard(e, "Excel sheet"), "  "+fg(cRed).Render("can't read: "+err.Error()))
+		p.lines = append(infoCard(e, "Excel sheet"), readError(p, err)...)
 		return
 	}
 	f.Close()
@@ -661,4 +741,87 @@ func sheetPreview(p *preview, e entry) {
 		b.WriteString(csvAsMarkdown(csvText.String(), false))
 	}
 	p.kind, p.src = "md", b.String()
+}
+
+// cellPopup: the cell under the cursor, whole, with its own line breaks and spaces
+func (m *model) cellPopup(lines []string) {
+	if m.rd == nil || m.rd.p.grid == nil || !m.rd.p.grid.cellOpen || m.help {
+		return
+	}
+	g := m.rd.p.grid
+	row := g.curRow()
+	if row < 0 {
+		g.cellOpen = false
+		return
+	}
+	w := m.popupWidth(60, 110)
+	inner := w - 4
+	name := colName(g.c) + strconv.Itoa(row+1)
+	title := fg(cAcc).Bold(true).Render(name)
+	if g.header && row > 0 {
+		if h := oneLine(g.cell(0, g.c)); h != "" {
+			title += fg(cMut).Render("  " + trunc(h, inner-10))
+		}
+	}
+	var body []string
+	if g.file != nil {
+		if f, err := g.file.GetCellFormula(g.sh().name, name); err == nil && f != "" {
+			for _, l := range strings.Split(ansi.Wrap("="+f, inner, " ,;("), "\n") {
+				body = append(body, fg(cPurple).Render(l))
+			}
+			body = append(body, fg(cDim).Render(strings.Repeat("─", inner)))
+		}
+	}
+	text := strings.ReplaceAll(strings.ReplaceAll(g.cell(row, g.c), "\r\n", "\n"), "\t", "    ")
+	if text == "" {
+		body = append(body, fg(cMut).Render("(empty)"))
+	}
+	for _, l := range strings.Split(text, "\n") {
+		// a wrapped line keeps the line's indent (and lines up after a "- " / "• " bullet)
+		rest := strings.TrimLeft(l, " ")
+		ind := len(l) - len(rest)
+		hang := ind
+		for _, b := range []string{"- ", "• ", "* "} {
+			if strings.HasPrefix(rest, b) {
+				hang += 2
+			}
+		}
+		hang = min(hang, inner/2)
+		for i, part := range strings.Split(ansi.Wrap(rest, inner-hang, " -/,;"), "\n") {
+			lead := strings.Repeat(" ", min(ind, inner/2))
+			if i > 0 {
+				lead = strings.Repeat(" ", hang)
+			}
+			body = append(body, fg(cTxt).Render(lead+strings.TrimLeft(part, " ")))
+		}
+	}
+	room := max(3, m.h-9)
+	g.cellScroll = max(0, min(g.cellScroll, len(body)-room))
+	more := ""
+	if len(body) > room {
+		more = fmt.Sprintf("  %d–%d of %d lines", g.cellScroll+1, g.cellScroll+room, len(body))
+		body = body[g.cellScroll : g.cellScroll+room]
+	}
+	body = append(body, fg(cDim).Render(strings.Repeat("─", inner)),
+		keyHints("esc", "close", "j/k", "scroll", "h/l", "next cell", "y", "copy")+fg(cMut).Render(more))
+	box := popupBox(title, w, body, fg(cAcc))
+	put(lines, (m.w-w)/2, max(2, (m.h-len(box))/2), box, w)
+}
+
+// readError: why a file can't be read; a file another app is busy with is tried again
+func readError(p *preview, err error) []string {
+	msg := err.Error()
+	if pe, ok := err.(*os.PathError); ok {
+		msg = pe.Err.Error()
+	}
+	if busy(err) {
+		p.retry = true
+		return []string{"", "  " + fg(cYellow).Render("another app is using it right now (Excel, a download,"),
+			"  " + fg(cYellow).Render("OneDrive…): trying again")}
+	}
+	out := []string{""}
+	for _, l := range wrapText("can't read: "+msg, 50, fg(cRed)) {
+		out = append(out, "  "+l)
+	}
+	return out
 }

@@ -84,7 +84,7 @@ var keyTable = []keyHelp{
 	{"Copy", "cn", "copy the name without extension", ""},
 	{"View", ".", "show / hide hidden files", "hidden"},
 	{"View", "J / K", "scroll the preview down / up", ""},
-	{"View", "F", "read the file full screen (double-click the preview too); csv and Excel: a grid with sheets, find, filter, sort, copy", "full screen"},
+	{"View", "F", "read the file full screen (double-click the preview too); csv and Excel: a grid with sheets, enter shows a whole cell, find, filter, sort, copy", "full screen"},
 	{"View", "=", "column widths back to 1 : 4 : 3", ""},
 	{"View", "tab", "everything about the file: size of folders, dates, owner, git, text lines…", "info"},
 	{"Tabs", "tt", "new tab here", ""},

@@ -224,6 +224,7 @@ func (m *model) overlays(content string) string {
 	m.marksPopup(lines)
 	m.spotPopup(lines)
 	m.menuPopup(lines)
+	m.cellPopup(lines)
 	m.inputPopup(lines)
 	m.questionPopup(lines)
 	return strings.Join(lines, "\n")
