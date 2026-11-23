@@ -32,10 +32,20 @@ func Drain(m tea.Model, first tea.Cmd) {
 }
 
 // ParseInput turns "j", "ctrl+d", "alt+2", "shift+tab", "enter", "type:some text",
-// "click:10,5", "wheel:10,5,up" into a message.
+// "click:10,5", "wheel:10,5,up", "drag:30,5", "release:30,5" into a message.
 func ParseInput(a string) tea.Msg {
 	if strings.HasPrefix(a, "type:") {
 		return tea.PasteMsg{Content: a[5:]}
+	}
+	if strings.HasPrefix(a, "drag:") || strings.HasPrefix(a, "release:") { // mouse moved with the button down / let go
+		_, xy, _ := strings.Cut(a, ":")
+		p := strings.Split(xy, ",")
+		x, _ := strconv.Atoi(p[0])
+		y, _ := strconv.Atoi(p[len(p)-1])
+		if a[0] == 'd' {
+			return tea.MouseMotionMsg{X: x, Y: y, Button: tea.MouseLeft}
+		}
+		return tea.MouseReleaseMsg{X: x, Y: y, Button: tea.MouseLeft}
 	}
 	if strings.HasPrefix(a, "click:") || strings.HasPrefix(a, "wheel:") {
 		p := strings.Split(a[6:], ",")

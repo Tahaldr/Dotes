@@ -64,7 +64,20 @@ var binaryExt = map[string]string{
 	".woff": "Font", ".woff2": "Font", ".db": "Database", ".sqlite": "Database",
 }
 
-func makePreview(e entry, showHidden bool) preview {
+// limits: how much of a file to read (the side column reads a little, full screen a lot)
+type limits struct {
+	bytes int64
+	lines int
+}
+
+var (
+	sideLimits = limits{previewBytes, previewLines}
+	fullLimits = limits{16 << 20, 200000}
+)
+
+func makePreview(e entry, showHidden bool) preview { return makePreviewLim(e, showHidden, sideLimits) }
+
+func makePreviewLim(e entry, showHidden bool, lim limits) preview {
 	p := preview{key: previewKey(e, showHidden)}
 	if e.isDir {
 		p.dir = true
@@ -85,7 +98,7 @@ func makePreview(e entry, showHidden bool) preview {
 		p.lines = infoCard(e, kind)
 		return p
 	}
-	data, err := readHead(e.path)
+	data, err := readHeadN(e.path, lim.bytes)
 	if err != nil {
 		p.lines = []string{fg(cRed).Render("can't read: ") + fg(cMut).Render(errText(err))}
 		return p
@@ -103,18 +116,18 @@ func makePreview(e entry, showHidden bool) preview {
 	case ext == ".md" || ext == ".markdown" || ext == ".mdx":
 		p.kind, p.src = "md", text
 		return p
-	case (ext == ".csv" || ext == ".tsv") && e.size <= previewBytes:
+	case (ext == ".csv" || ext == ".tsv") && e.size <= lim.bytes:
 		p.kind, p.src = "csv", text
 		return p
-	case (ext == ".json" || ext == ".jsonc" || ext == ".geojson") && e.size <= previewBytes:
+	case (ext == ".json" || ext == ".jsonc" || ext == ".geojson") && e.size <= lim.bytes:
 		var buf bytes.Buffer
 		if json.Indent(&buf, []byte(text), "", "  ") == nil {
 			text = buf.String()
 		}
 	}
-	p.lines = highlight(e.name, text)
-	if e.size > previewBytes {
-		p.lines = append(p.lines, "", fg(cMut).Render(fmt.Sprintf("… only the first %s shown", humanSize(previewBytes))))
+	p.lines = highlightN(e.name, text, lim.lines)
+	if e.size > lim.bytes {
+		p.lines = append(p.lines, "", fg(cMut).Render(fmt.Sprintf("… only the first %s shown", humanSize(lim.bytes))))
 	}
 	return p
 }
@@ -129,13 +142,15 @@ func errText(err error) string {
 	return err.Error()
 }
 
-func readHead(path string) ([]byte, error) {
+func readHead(path string) ([]byte, error) { return readHeadN(path, previewBytes) }
+
+func readHeadN(path string, n int64) ([]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	return io.ReadAll(io.LimitReader(f, previewBytes))
+	return io.ReadAll(io.LimitReader(f, n))
 }
 
 // asText decodes UTF-8 / UTF-16 text; ok is false for binary data
@@ -218,10 +233,12 @@ func infoCard(e entry, kind string) []string {
 var codeStyle = styles.Get("onedark")
 
 // highlight colors source code: one string per line, with line numbers
-func highlight(name, text string) []string {
+func highlight(name, text string) []string { return highlightN(name, text, previewLines) }
+
+func highlightN(name, text string, maxLines int) []string {
 	text = strings.TrimRight(strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", "\n"), "\t", "    "), "\n")
-	if n := strings.Count(text, "\n"); n >= previewLines {
-		text = text[:nthIndex(text, '\n', previewLines)]
+	if n := strings.Count(text, "\n"); n >= maxLines {
+		text = text[:nthIndex(text, '\n', maxLines)]
 	}
 	lexer := lexers.Match(name)
 	if lexer == nil {

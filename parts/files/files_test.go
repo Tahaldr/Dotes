@@ -642,3 +642,37 @@ func TestSearchWhileBrowsing(t *testing.T) {
 		t.Fatalf("ctrl+s shows them: %v %v", m.virtual, names(m))
 	}
 }
+
+func TestFullScreenReader(t *testing.T) {
+	d := testTree(t)
+	long := strings.Repeat("x", 95)
+	os.WriteFile(filepath.Join(d, "a.csv"), []byte("id,name,notes\n1,Sara,"+long+"END\n"), 0o644)
+	m := newModel(d)
+	m.moveToName("a.csv")
+	out := run(m, "F")
+	if m.rd == nil || !strings.Contains(out, "│ name") || !strings.Contains(out, "col 1") {
+		t.Fatalf("csv full screen: a table that scrolls sideways:\n%s", out)
+	}
+	out = run(m, "L") // to the right end
+	if !strings.Contains(out, "END") {
+		t.Fatalf("L should show the end of the row:\n%s", out)
+	}
+	run(m, "q")
+	if m.rd != nil {
+		t.Fatal("q should leave full screen")
+	}
+}
+
+func TestDragColumns(t *testing.T) {
+	m := newModel(testTree(t))
+	run(m)
+	sep := m.colX[1][1]
+	run(m, fmt.Sprintf("click:%d,3", sep), "drag:80,3", "release:80,3")
+	if m.colX[1][1] <= sep || m.drag != 0 {
+		t.Fatalf("dragging the line should widen the folder column: %d -> %d", sep, m.colX[1][1])
+	}
+	run(m, "=")
+	if m.colX[1][1] != sep {
+		t.Fatalf("= should put the widths back: %d, want %d", m.colX[1][1], sep)
+	}
+}

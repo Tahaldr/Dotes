@@ -23,6 +23,7 @@ type config struct {
 	lineMode string
 	images   string // auto, sixel, blocks
 	hints    bool
+	columns  [2]float64
 	openers  []opener
 }
 
@@ -43,6 +44,10 @@ linemode = size
 
 # images: auto (real pictures when the terminal can, blocks otherwise), sixel, blocks
 images = auto
+
+# column widths (parent, current folder) as parts of the width; drag the lines between the
+# columns with the mouse to set them, = (or empty) puts back 1 : 4 : 3
+columns =
 
 # extra apps for the open-with menu (O). %p is the file's path. One per line:
 # opener = Notepad | notepad "%p"
@@ -95,6 +100,8 @@ func parseConfig(text string, c config) config {
 			}
 		case "images":
 			c.images = strings.ToLower(v)
+		case "columns":
+			c.columns = parseColumns(v)
 		case "opener":
 			if name, run, ok := strings.Cut(v, "|"); ok && strings.TrimSpace(run) != "" {
 				c.openers = append(c.openers, opener{name: strings.TrimSpace(name), run: strings.TrimSpace(run)})

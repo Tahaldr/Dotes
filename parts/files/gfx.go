@@ -137,8 +137,8 @@ func (m *model) popupOpen() bool {
 
 // sixelPreview lays out an image preview: blank rows for the picture, then the info lines.
 // x, y are where the preview column's text starts.
-func (m *model) sixelPreview(w, h, x, y int) []string {
-	p := &m.pv
+func (m *model) sixelPreview(p *preview, w, h, x, y int) []string {
+	// p: the side preview or the full-screen one
 	room := max(1, h-len(p.info))
 	b := p.img.Bounds()
 	// how many cells the picture needs at this size

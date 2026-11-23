@@ -115,6 +115,11 @@ type model struct {
 	tabXs     [][2]int       // where the folder tabs are in the tab row (clicks)
 	pickedOut *app.PickedMsg // a project picked for Home, sent back after this key
 	bodyH     int
+
+	rd    *reader    // F: the file full screen
+	cols  [2]float64 // column widths dragged with the mouse: parent, current (0 = the usual 1 : 4 : 3)
+	drag  int        // 1 / 2: dragging the line after the parent / current column
+	avail int        // the columns' width, without the lines between them
 }
 
 type previewMsg struct{ p preview }
@@ -127,6 +132,7 @@ func newModel(start string) *model {
 		gfx: "blocks", cellW: 10, cellH: 20}
 	if cfg.sortBy != "" { // settings from config.txt (tests run without them)
 		m.showHidden, m.sortBy, m.sortRev, m.lineMode, m.hintsOn = cfg.hidden, cfg.sortBy, cfg.sortRev, cfg.lineMode, cfg.hints
+		m.cols = cfg.columns
 	}
 	if abs, err := filepath.Abs(start); err == nil {
 		start = abs
@@ -438,6 +444,9 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.w, m.h = msg.Width, msg.Height
 		return m, nil
+	case readerMsg:
+		m.readerGot(msg)
+		return m, nil
 	case previewMsg:
 		if len(m.cache) > 300 {
 			m.cache = map[string]preview{}
@@ -452,6 +461,9 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.fromWatch { // the watcher's own wait goes on; no second timer
 			next = nil
 		}
+		if rc := m.readerCheck(); rc != nil {
+			next = tea.Batch(next, rc)
+		}
 		if m.virtual != "" || m.sortBy == "random" {
 			return m, next
 		}
@@ -465,7 +477,7 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.setNote("editor: "+msg.err.Error(), true)
 		}
 		m.reload()
-		return m, m.previewCmd()
+		return m, tea.Batch(m.previewCmd(), m.readerCheck())
 	case bulkDoneMsg:
 		m.bulkDone(msg)
 		return m, m.previewCmd()
@@ -516,6 +528,12 @@ func (m *model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseWheelMsg:
 		m.wheel(msg)
 		return m, m.previewCmd()
+	case tea.MouseMotionMsg:
+		m.dragTo(msg.X)
+		return m, nil
+	case tea.MouseReleaseMsg:
+		m.dragEnd()
+		return m, nil
 	}
 	return m, nil
 }
@@ -579,6 +597,9 @@ func (m *model) key(k tea.KeyPressMsg) tea.Cmd {
 			m.helpScroll = 0
 		}
 		return nil
+	}
+	if m.rd != nil {
+		return m.readerKey(s)
 	}
 
 	if m.pending != "" {
@@ -685,6 +706,16 @@ func (m *model) key(k tea.KeyPressMsg) tea.Cmd {
 			m.back = append(m.back, m.cwd)
 			m.cd(dest, "", false)
 		}
+	case "F":
+		return m.openReader()
+	case "E":
+		if c := m.current(); c != nil && !c.drive {
+			m.showInExplorer(c.path)
+		} else {
+			m.showInExplorer(m.cwd)
+		}
+	case "=":
+		m.resetColumns()
 	case "J":
 		m.pscroll += 5
 	case "K":
@@ -967,6 +998,12 @@ func (m *model) click(c tea.MouseClickMsg) tea.Cmd {
 	if m.help || m.prompt != nil || m.question != nil || m.showTasks || m.showMarks || m.spot != nil || m.menu != nil || c.Button != tea.MouseLeft {
 		return nil
 	}
+	if m.rd != nil {
+		return nil
+	}
+	if m.dragStart(c.X, c.Y) {
+		return nil
+	}
 	if c.Y == 0 { // the tab row: a folder tab
 		for i, x := range m.tabXs {
 			if c.X >= x[0] && c.X < x[1] {
@@ -998,7 +1035,16 @@ func (m *model) click(c tea.MouseClickMsg) tea.Cmd {
 			return m.open(m.entries[i])
 		}
 		m.cursor, m.pscroll = i, 0
-	case 2: // a folder's preview: go in, on the clicked entry
+	case 2: // a folder's preview: go in, on the clicked entry; a file's: double-click reads it full screen
+		if c := m.current(); c != nil && !c.isDir {
+			double := m.clickIdx == -2 && time.Since(m.lastClick) < 450*time.Millisecond
+			m.clickIdx, m.lastClick = -2, time.Now()
+			if double || m.dump {
+				m.clickIdx = -1
+				return m.openReader()
+			}
+			return nil
+		}
 		if c := m.current(); c != nil && c.isDir && m.pv.dir {
 			top := listTop(len(m.pv.entries), m.previewIdx(), m.bodyH)
 			if i := top + row; i < len(m.pv.entries) {
@@ -1011,6 +1057,10 @@ func (m *model) click(c tea.MouseClickMsg) tea.Cmd {
 
 func (m *model) wheel(w tea.MouseWheelMsg) {
 	if m.prompt != nil || m.question != nil || m.showTasks || m.showMarks || m.spot != nil || m.menu != nil {
+		return
+	}
+	if m.rd != nil && !m.help {
+		m.readerWheel(w)
 		return
 	}
 	if m.help {

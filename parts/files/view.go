@@ -20,6 +20,8 @@ func (m *model) View() tea.View {
 		content = fg(cMut).Render("Files needs a bigger window (at least 40 x 8).")
 	case m.help:
 		content = m.helpView()
+	case m.rd != nil:
+		content = m.overlays(m.readerView())
 	default:
 		content = m.overlays(m.mainView())
 	}
@@ -40,18 +42,8 @@ func (m *model) mainView() string {
 	m.bodyY = 2
 	m.bodyH = max(1, m.h-1-m.bodyY-len(hints))
 
-	// column widths 1 : 4 : 3, like yazi (no parent column in narrow windows)
-	avail := m.w - 2
-	pw := avail / 8
-	if m.w < 70 {
-		pw = 0
-		avail = m.w - 1
-	}
-	cw := avail / 2
-	if pw == 0 {
-		cw = avail * 4 / 7
-	}
-	prw := avail - pw - cw
+	// column widths 1 : 4 : 3, like yazi (no parent column in narrow windows), or as dragged
+	pw, cw, prw := m.columnWidths()
 	x := 0
 	if pw > 0 {
 		m.colX[0] = [2]int{0, pw}
@@ -237,7 +229,7 @@ func (m *model) previewCol(w, h int) []string {
 	switch {
 	case m.pv.kind == "image" && m.gfx == "sixel" && !m.popupOpen():
 		m.pscroll = 0 // the picture sits at a fixed spot
-		lines = m.sixelPreview(w-1, h, m.colX[2][0]+1, m.bodyY)
+		lines = m.sixelPreview(&m.pv, w-1, h, m.colX[2][0]+1, m.bodyY)
 	case m.pv.kind != "":
 		lines = m.pv.richLines(w-1, h)
 	}
